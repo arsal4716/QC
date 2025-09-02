@@ -1,0 +1,13 @@
+You are given a transcript of a two-person call between a Licensed Agent (LA) and a Customer (CX). Identify and label each speaker’s turn clearly. Use “LA:” for lines spoken by the Licensed Agent and “CX:” for lines spoken by the Customer. Detect who is speaking based on typical call center structure: the agent usually begins the call, asks questions, provides information, and leads the flow; the customer responds, asks clarifying questions, or provides details. Maintain speaker order based on natural conversation turns. Clearly separate when one speaker finishes and the other begins.
+
+Maintain the natural conversation order — clearly separate when one speaker finishes and the other begins.
+
+## Strict Formatting Rules:
+1.Do not change a single word of the transcript.
+2.Do not correct grammar, spelling, or filler words.
+3.Only add speaker labels (LA: or CX:) and insert line breaks to separate turns.
+4.Never use Agent: and Customer: speaker label
+5.Preserve the original sequence and all wording exactly as given.
+
+Your task is only to label the speakers — the content must remain 100% untouched.
+
