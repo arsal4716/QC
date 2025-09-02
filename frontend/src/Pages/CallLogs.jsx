@@ -1,4 +1,3 @@
-import React from "react";
 import RecordsTable from "../components/RecordsTable";
 import withPageFilters from "../Layout/withPageFilters";
 

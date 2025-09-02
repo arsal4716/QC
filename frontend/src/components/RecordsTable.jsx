@@ -4,11 +4,22 @@ import ColumnSettingsModal from "./ColumnSettingsModal";
 import DetailModal from "./DetailModal";
 import { toast } from "react-toastify";
 import { getRecords, getCallDetail, exportRecords } from "../api/callsApi";
-export default function RecordsTable({ filters, refreshKey, selectedCampaigns = [], selectedPublishers = [] }) {
+
+export default function RecordsTable({
+  filters,
+  refreshKey,
+  selectedCampaigns = [],
+  selectedPublishers = [],
+}) {
   const context = useContext(ColumnsContext);
   const columns = context?.columns ?? [];
   const [rows, setRows] = useState([]);
-  const [meta, setMeta] = useState({});
+  const [meta, setMeta] = useState({
+    total: 0,
+    pages: 1,
+    page: 1,
+    limit: 25
+  });
   const [page, setPage] = useState(1);
   const [limit] = useState(25);
   const [sortBy, setSortBy] = useState("callTimestamp");
@@ -17,6 +28,7 @@ export default function RecordsTable({ filters, refreshKey, selectedCampaigns = 
   const [loading, setLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [detail, setDetail] = useState(null);
+
   const fetchData = useCallback(
     async (pageNumber = page) => {
       setLoading(true);
@@ -27,39 +39,69 @@ export default function RecordsTable({ filters, refreshKey, selectedCampaigns = 
           sortBy,
           sortDir,
           ...filters,
-            campaign: selectedCampaigns.join(','),
-          publisher: selectedPublishers.join(',')
+          campaign: selectedCampaigns.join(","),
+          publisher: selectedPublishers.join(","),
         };
-        if (search) params.search = search;
+        
+        if (search.trim()) {
+          params.search = search.trim();
+        }
 
         const response = await getRecords(params);
-        const data = Array.isArray(response) ? response : response.data || [];
-        const meta = response.meta || { total: data.length, pages: 1 };
-        const normalized = data.map((r) => ({ ...r, id: r._id || r.id }));
+        
+        // Response should now have data and meta properties
+        const records = response.data || [];
+        const responseMeta = response.meta || {
+          total: records.length,
+          pages: 1,
+          page: pageNumber,
+          limit: limit,
+        };
 
+        const normalized = records.map((r) => ({ ...r, id: r._id || r.id }));
         setRows(normalized);
-        setMeta(meta);
+        setMeta(responseMeta);
+        setPage(responseMeta.page || pageNumber);
       } catch (error) {
         console.error("Failed to load records:", error);
         toast.error("Failed to load records");
+        setRows([]);
+        setMeta({
+          total: 0,
+          pages: 1,
+          page: 1,
+          limit: limit,
+        });
       } finally {
         setLoading(false);
       }
     },
-    [page, limit, sortBy, sortDir, filters, search,selectedCampaigns, selectedPublishers]
+    [page, limit, sortBy, sortDir, filters, search, selectedCampaigns, selectedPublishers]
   );
+
+  // Reset to page 1 when filters, sort, or search changes
   useEffect(() => {
+    setPage(1);
     fetchData(1);
-  }, [filters, refreshKey, sortBy, sortDir, fetchData]);
+  }, [filters, refreshKey, sortBy, sortDir, search]);
+
+  // Debounced search
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (search !== "") {
+      if (search.trim() !== "") {
+        setPage(1);
         fetchData(1);
       }
     }, 500);
 
     return () => clearTimeout(timer);
   }, [search, fetchData]);
+
+  const handlePageChange = (newPage) => {
+    if (newPage < 1 || newPage > meta.pages) return;
+    setPage(newPage);
+    fetchData(newPage);
+  };
 
   async function openDetail(id, field = null) {
     try {
@@ -88,36 +130,35 @@ export default function RecordsTable({ filters, refreshKey, selectedCampaigns = 
   }
 
   if (!context) {
-    return <div className="text-danger"> Columns not provided</div>;
+    return <div className="text-danger">Columns not provided</div>;
   }
 
   return (
-    <div
-      className="card"
-      style={{ backgroundColor: "#17233d", fontSize: "12px" }}
-    >
+    <div className="card" style={{ backgroundColor: "#17233d", fontSize: "12px" }}>
       <div className="card-header d-flex align-items-center">
         <div className="input-group me-2" style={{ maxWidth: 300 }}>
-
-  <input
-    className="form-control form-control-sm"
-    placeholder="Search caller, campaign..."
-    value={search}
-    onChange={(e) => setSearch(e.target.value)}
-    style={{ backgroundColor: "#ffffff", color: "#000" }}
-    onKeyPress={(e) => {
-      if (e.key === "Enter") {
-        fetchData(1);
-      }
-    }}
-  />
-  <button
-    className="btn btn-sm btn-primary"
-    onClick={() => fetchData(1)}
-  >
-    <i className="bi bi-search" />
-  </button>
-
+          <input
+            className="form-control form-control-sm"
+            placeholder="Search caller, campaign..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ backgroundColor: "#ffffff", color: "#000" }}
+            onKeyPress={(e) => {
+              if (e.key === "Enter") {
+                setPage(1);
+                fetchData(1);
+              }
+            }}
+          />
+          <button
+            className="btn btn-sm btn-primary"
+            onClick={() => {
+              setPage(1);
+              fetchData(1);
+            }}
+          >
+            <i className="bi bi-search" />
+          </button>
         </div>
         <div className="ms-auto d-flex gap-2">
           <button
@@ -151,6 +192,7 @@ export default function RecordsTable({ filters, refreshKey, selectedCampaigns = 
           </button>
         </div>
       </div>
+
       <div className="table-responsive">
         <table className="table table-hover mb-0 text-light">
           <thead style={{ backgroundColor: "#17233d" }}>
@@ -167,11 +209,13 @@ export default function RecordsTable({ filters, refreshKey, selectedCampaigns = 
                     <button
                       className="btn btn-sm btn-link text-light ms-2"
                       onClick={() => {
+                        const newSortDir = sortBy === col.key && sortDir === "desc" ? "asc" : "desc";
                         setSortBy(col.key);
-                        setSortDir(sortDir === "asc" ? "desc" : "asc");
+                        setSortDir(newSortDir);
+                        setPage(1);
                       }}
                     >
-                      <i className="bi bi-arrow-down-up" />
+                      <i className={`bi bi-arrow-${sortBy === col.key && sortDir === "asc" ? "up" : "down"}`} />
                     </button>
                   </th>
                 ))}
@@ -183,26 +227,20 @@ export default function RecordsTable({ filters, refreshKey, selectedCampaigns = 
           <tbody>
             {loading ? (
               <tr>
-                <td
-                  colSpan={(columns?.length ?? 0) + 1}
-                  className="text-center text-white"
-                >
+                <td colSpan={(columns?.length ?? 0) + 1} className="text-center text-white">
+                  <div className="spinner-border spinner-border-sm me-2" role="status" />
                   Loading...
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td
-                  colSpan={(columns?.length ?? 0) + 1}
-                  className="text-center text-white"
-                >
+                <td colSpan={(columns?.length ?? 0) + 1} className="text-center text-white">
                   No records found
                 </td>
               </tr>
             ) : (
               rows.map((r) => (
                 <tr key={r._id || r.id}>
-                  {" "}
                   {columns
                     .filter((c) => c.visible)
                     .map((col) => (
@@ -237,17 +275,15 @@ export default function RecordsTable({ filters, refreshKey, selectedCampaigns = 
                             className="dropdown-item"
                             onClick={() => openDetail(r._id || r.id, null)}
                           >
-                            View
+                            View Details
                           </button>
                         </li>
                         <li>
                           <button
                             className="dropdown-item"
-                            onClick={() =>
-                              navigator.clipboard.writeText(JSON.stringify(r))
-                            }
+                            onClick={() => navigator.clipboard.writeText(JSON.stringify(r, null, 2))}
                           >
-                            Copy
+                            Copy JSON
                           </button>
                         </li>
                       </ul>
@@ -260,35 +296,36 @@ export default function RecordsTable({ filters, refreshKey, selectedCampaigns = 
         </table>
       </div>
 
-      {/* Footer */}
+      {/* Footer with Pagination */}
       <div className="card-footer d-flex align-items-center justify-content-between">
         <div className="text-white">
-          Showing {rows.length} of {meta.total || 0}
+          Showing {rows.length} of {meta.total} records
+          {meta.pages > 1 && ` (Page ${page} of ${meta.pages})`}
         </div>
-        <div>
-          <button
-            className="btn btn-sm btn-outline-light me-2"
-            disabled={page <= 1}
-            onClick={() => {
-              const newPage = Math.max(1, page - 1);
-              setPage(newPage);
-              fetchData(newPage);
-            }}
-          >
-            Prev
-          </button>
-          <button
-            className="btn btn-sm btn-outline-light"
-            disabled={page >= (meta.pages || 1)}
-            onClick={() => {
-              const newPage = page + 1;
-              setPage(newPage);
-              fetchData(newPage);
-            }}
-          >
-            Next
-          </button>
-        </div>
+        
+        {meta.pages > 1 && (
+          <div className="d-flex align-items-center gap-2">
+            <button
+              className="btn btn-sm btn-outline-light"
+              disabled={page <= 1}
+              onClick={() => handlePageChange(page - 1)}
+            >
+              ← Prev
+            </button>
+            
+            <span className="text-white mx-2">
+              {page} / {meta.pages}
+            </span>
+            
+            <button
+              className="btn btn-sm btn-outline-light"
+              disabled={page >= meta.pages}
+              onClick={() => handlePageChange(page + 1)}
+            >
+              Next →
+            </button>
+          </div>
+        )}
       </div>
 
       <ColumnSettingsModal
@@ -302,17 +339,22 @@ export default function RecordsTable({ filters, refreshKey, selectedCampaigns = 
 
 function renderCell(r, col) {
   const val = getByPath(r, col.key);
-  if (!val) return "-";
+  if (val === null || val === undefined || val === "") return "-";
 
   if (col.key === "recordingUrl") {
     return (
       <a href={val} target="_blank" rel="noreferrer" className="text-info">
-        Play
+        <i className="bi bi-play-circle me-1" /> Play
       </a>
     );
   }
 
+  if (typeof val === 'object') {
+    return JSON.stringify(val);
+  }
+
   let str = String(val).trim();
+  
   if (["qc.reason", "qc.summary", "transcript"].includes(col.key)) {
     const words = str.split(/\s+/);
     if (words.length > 3) {
@@ -324,7 +366,8 @@ function renderCell(r, col) {
 }
 
 function getByPath(obj, path) {
-  return path
-    .split(".")
-    .reduce((acc, p) => (acc && acc[p] !== undefined ? acc[p] : null), obj);
+  return path.split('.').reduce((acc, part) => {
+    if (acc === null || acc === undefined) return null;
+    return acc[part];
+  }, obj);
 }

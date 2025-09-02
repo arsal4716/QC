@@ -46,26 +46,27 @@ const Register = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleRegister = async (e) => {
-    e.preventDefault();
-    
-    if (!validateForm()) return;
-    
-    setIsLoading(true);
-    try {
-      const res = await register({ name, email, password });
-      if (res.success) {
-        toast.success("Registered successfully! Please login.");
-        navigate("/login");
-      } else {
-        toast.error(res.message || "Registration failed");
-      }
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Registration error");
-    } finally {
-      setIsLoading(false);
+const handleRegister = async (e) => {
+  e.preventDefault();
+
+  if (!validateForm()) return;
+
+  setIsLoading(true);
+  try {
+    const res = await register({ name, email, password });
+    if (res.success) {
+      toast.success(res.message || "Registered successfully! Please login.");
+      navigate("/login");
+    } else {
+      toast.error(res.message || "Registration failed");
     }
-  };
+  } catch (err) {
+    console.error("Registration error:", err);
+    toast.error(err.message || "Registration error");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);

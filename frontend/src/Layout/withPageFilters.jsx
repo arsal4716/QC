@@ -1,16 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useFilters } from '../hooks/useFilters';
 import TopBar from '../components/TopBar';
 import FiltersPanel from '../components/FiltersPanel';
 import useAutoRefresh from '../hooks/useAutoRefresh';
-import { useState } from 'react';
-const withPageFilters = (WrappedComponent, initialFilters = { datePreset: "today" }) => {
+
+const withPageFilters = (
+  WrappedComponent,
+  initialFilters = { datePreset: "today" }
+) => {
   return (props) => {
     const {
       filters,
       selectedCampaigns,
       selectedPublishers,
-      refreshKey,
       setSelectedCampaigns,
       setSelectedPublishers,
       updateFilters,
@@ -19,8 +21,10 @@ const withPageFilters = (WrappedComponent, initialFilters = { datePreset: "today
 
     const [filtersVisible, setFiltersVisible] = useState(false);
     const [autoRefresh, setAutoRefresh] = useState(false);
-    
-    // useAutoRefresh(autoRefresh, 15000, () => setRefreshKey(prev => prev + 1));
+    const [refreshKey, setRefreshKey] = useState(0);  
+    useAutoRefresh(autoRefresh, 15000, () =>
+      setRefreshKey((prev) => prev + 1)
+    );
 
     const handleApplyFilters = (payload) => {
       updateFilters(payload);
@@ -30,7 +34,7 @@ const withPageFilters = (WrappedComponent, initialFilters = { datePreset: "today
     return (
       <div className="container-fluid">
         <TopBar
-          onToggleFilters={() => setFiltersVisible(v => !v)}
+          onToggleFilters={() => setFiltersVisible((v) => !v)}
           autoRefresh={autoRefresh}
           setAutoRefresh={setAutoRefresh}
           rangeLabel={filters.datePreset}
@@ -43,7 +47,7 @@ const withPageFilters = (WrappedComponent, initialFilters = { datePreset: "today
         <WrappedComponent
           {...props}
           filters={filters}
-          refreshKey={refreshKey}
+          refreshKey={refreshKey}   
           selectedCampaigns={selectedCampaigns}
           selectedPublishers={selectedPublishers}
           onResetFilters={resetFilters}

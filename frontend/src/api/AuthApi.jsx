@@ -1,16 +1,19 @@
 // AuthApi.js
 import axios from './axios'; 
+
 export async function register(params) {
   const { data } = await axios.post('/api/auth/register', params);
-  return data.data || {};
+  console.log('register data', data);
+  return data; 
 }
 
 export async function login(params) {
   const { data } = await axios.post('/api/auth/login', params);
-  return data;
+  console.log('login data', data);
+  return data; 
 }
 
 export async function users(params) {
   const { data } = await axios.get('/api/user', { params });
-  return data.data || {};
+  return data;
 }

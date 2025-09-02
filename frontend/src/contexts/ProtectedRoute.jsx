@@ -8,12 +8,9 @@ const ProtectedRoute = ({ children, requiredRole = null }) => {
   if (isLoading) {
     return <LoadingSpinner />;
   }
-
-  // Use isAuthenticated instead of checking user && token separately
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
-
   if (requiredRole && user.role !== requiredRole) {
     return <Navigate to="/" replace />;
   }

@@ -35,15 +35,17 @@ const Login = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
+const handleLogin = async (e) => {
+  e.preventDefault();
+  
+  if (!validateForm()) return;
+  
+  setIsLoading(true);
+  try {
+    const response = await loginApi({ email, password });
     
-    if (!validateForm()) return;
-    
-    setIsLoading(true);
-    try {
-      const response = await loginApi({ email, password });
-      toast.success("Login successful.");
+    if (response.success) {
+      toast.success(response.message || "Login successful.");
       if (response.token && response.user) {
         login(response.token, response.user);
         navigate("/reporting");
@@ -51,13 +53,16 @@ const Login = () => {
         console.error("Invalid response structure:", response);
         toast.error("Login failed: Invalid response from server");
       }
-    } catch (error) {
-      console.error("Login Failed:", error.response?.data || error.message);
-      toast.error(error.response?.data?.message || "Login failed!");
-    } finally {
-      setIsLoading(false);
+    } else {
+      toast.error(response.message || "Login failed");
     }
-  };
+  } catch (error) {
+    console.error("Login Failed:", error);
+    toast.error(error.message || "Login failed!");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);

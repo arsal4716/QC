@@ -15,13 +15,15 @@ import { LoaderProvider, useLoader } from "./contexts/LoaderContext";
 import Loader from "./components/Loader";
 import "./App.css";
 const PublicRoute = ({ children }) => {
-  const { user } = useAuth();
-  
-  return user ? <Navigate to="/" replace /> : children;
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) return null; 
+  return user ? <Navigate to="/reporting" replace /> : children;
 };
 
 function AppContent() {
   const { loading } = useLoader();
+  const { user } = useAuth();
 
   return (
     <>
@@ -44,9 +46,9 @@ function AppContent() {
           }
         />
         <Route
-          path="/"
-          element={<Navigate to="/login" replace />}  
-        />
+  path="/"
+  element={user ? <Navigate to="/reporting" replace /> : <Navigate to="/login" replace />}
+/>
         <Route
           path="/reporting"
           element={

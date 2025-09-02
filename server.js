@@ -18,7 +18,6 @@ app.use(express.json({ limit: "10mb" }));
 app.use(helmet());
 app.use(compression());
 app.use(morgan("dev"));
-app.get("/", (_req, res) => res.json({ ok: true, name: "QC Bot API" }));
 app.use('/webhook', require('./routes/callRoutes.js'));
 app.use('/api/stats', require('./routes/stats'));        
 app.use('/api', require('./routes/records'));   

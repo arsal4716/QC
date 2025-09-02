@@ -14,7 +14,7 @@ export async function getCallDetail(id) {
 export async function getRecords(params) {
   const { data } = await axios.get('/api/calls/records', { params });
     console.log('getRecords data',data)
-  return data.data;
+  return data;
 }
 
 export async function exportRecords(filters, fmt = 'csv') {

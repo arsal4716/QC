@@ -15,52 +15,71 @@ class RecordsService {
         { campaignName: re },
         { publisherName: re },
         { 'qc.reason': re },
-        { 'qc.summary': re }
+        { 'qc.summary': re },
+        { transcript: re }
       ];
     }
 
     const sort = { [sortBy]: sortDir === 'asc' ? 1 : -1 };
+    const [total, data] = await Promise.all([
+      CallRecord.countDocuments(match),
+      
+      CallRecord.find(match)
+        .sort(sort)
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .select({
+          _id: 1,
+          callTimestamp: 1,
+          campaignName: 1,
+          publisherName: 1,
+          callerId: 1,
+          durationSec: 1,
+          recordingUrl: 1,
+          systemCallId: 1,
+          systemPublisherId: 1,
+          'qc.disposition': 1,
+          'qc.sub_disposition': 1,
+          'qc.reason': 1,
+          'qc.summary': 1,
+          'qc.sentiment': 1,
+          transcript: 1,
+          'ringbaRaw.caller_number': 1
+        })
+        .lean()
+    ]);
 
-    const pipeline = [
-      { $match: match },
-      { $sort: sort },
-      {
-        $facet: {
-          data: [
-            { $skip: (page - 1) * limit },
-            { $limit: limit },
-            {
-              $project: {
-                _id: 1,
-                callTimestamp: 1,
-                campaignName: 1,
-                systemName: "$publisherName", 
-                callerId: 1,
-                durationSec: 1,
-                recordingUrl: 1,
-                systemCallId: 1,
-                systemPublisherId: 1,
-                "qc.disposition": 1,
-                "qc.sub_disposition": 1,
-                "qc.reason": 1,
-                "qc.summary": 1,
-                transcript: 1,
-                "ringbaRaw.caller_number": 1
-              }
-            }
-          ],
-          meta: [{ $count: 'total' }]
-        }
+    return {
+      data,
+      meta: {
+        page,
+        limit,
+        total,
+        pages: Math.max(1, Math.ceil(total / limit))
       }
-    ];
-
-    const [{ data, meta }] = await CallRecord.aggregate(pipeline, { allowDiskUse: true });
-    const total = meta?.[0]?.total || 0;
-    return { data, page, limit, total, pages: Math.max(1, Math.ceil(total / limit)) };
+    };
   }
 
   async getRecordById(id) {
-    return CallRecord.findById(id).lean();
+    return CallRecord.findById(id)
+      .select({
+        _id: 1,
+        callTimestamp: 1,
+        campaignName: 1,
+        publisherName: 1,
+        systemName: 1,
+        callerId: 1,
+        durationSec: 1,
+        recordingUrl: 1,
+        systemCallId: 1,
+        systemPublisherId: 1,
+        systemBuyerId: 1,
+        qc: 1,
+        transcript: 1,
+        labeledTranscript: 1,
+        ringbaRaw: 1
+      })
+      .lean();
   }
 
   async exportRecords(q) {
@@ -68,16 +87,17 @@ class RecordsService {
     return CallRecord.find(match)
       .select({
         callTimestamp: 1,
-        systemName: "$publisherName",  
-        callerId: 1,
-        "qc.disposition": 1,
-        "qc.sub_disposition": 1,
-        durationSec: 1,
         campaignName: 1,
-        "qc.reason": 1,
-        "qc.summary": 1,
+        publisherName: 1,
+        callerId: 1,
+        'qc.disposition': 1,
+        'qc.sub_disposition': 1,
+        'qc.reason': 1,
+        'qc.summary': 1,
+        'qc.sentiment': 1,
+        durationSec: 1,
         transcript: 1,
-        "ringbaRaw.caller_number": 1,
+        'ringbaRaw.caller_number': 1,
         recordingUrl: 1,
         systemCallId: 1,
         systemPublisherId: 1
