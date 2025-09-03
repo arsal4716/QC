@@ -1,3 +1,4 @@
+const slugify = require('slugify');
 const CallRecord = require("../models/CallRecord");
 const { transcribe } = require("./deepgramService");
 const { labelSpeakers, analyzeDisposition } = require("./openaiService");
@@ -34,22 +35,43 @@ class WebhookService {
       ringbaRaw: payload
     };
   }
+
   async ensureCampaignPublisher(callData) {
     if (callData.campaignName) {
+      const campaignSlug = this.generateSlug(callData.campaignName);
       await Campaign.updateOne(
         { name: callData.campaignName },
-        { $setOnInsert: { name: callData.campaignName } },
+        { 
+          $setOnInsert: { 
+            name: callData.campaignName,
+            slug: campaignSlug
+          } 
+        },
         { upsert: true }
       );
     }
 
     if (callData.publisherName) {
+      const publisherSlug = this.generateSlug(callData.publisherName);
       await Publisher.updateOne(
         { name: callData.publisherName },
-        { $setOnInsert: { name: callData.publisherName } },
+        { 
+          $setOnInsert: { 
+            name: callData.publisherName,
+            slug: publisherSlug
+          } 
+        },
         { upsert: true }
       );
     }
+  }
+
+  generateSlug(text) {
+    return slugify(text, {
+      lower: true,     
+      strict: true,     
+      remove: /[*+~.()'"!:@]/g 
+    });
   }
 
   async processCall(callData) {

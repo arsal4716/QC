@@ -4,7 +4,7 @@ import ColumnSettingsModal from "./ColumnSettingsModal";
 import DetailModal from "./DetailModal";
 import { toast } from "react-toastify";
 import { getRecords, getCallDetail, exportRecords } from "../api/callsApi";
-
+import {formatRingbaDate} from '../utils/dateFormatter'
 export default function RecordsTable({
   filters,
   refreshKey,
@@ -347,6 +347,9 @@ function renderCell(r, col) {
         <i className="bi bi-play-circle me-1" /> Play
       </a>
     );
+  }
+  if (col.key === "callTimestamp") {
+    return formatRingbaDate(val);
   }
 
   if (typeof val === 'object') {
