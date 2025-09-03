@@ -11,7 +11,7 @@ class StatsService {
     $group: {
       _id: null,
       totalProcessed: { $sum: 1 },
-      sale: { $sum: { $cond: [{ $eq: ['$qc.disposition', 'Sale'] }, 1, 0] } },
+      sale: { $sum: { $cond: [{ $eq: ['$qc.disposition', 'Sales'] }, 1, 0] } },
       notInterested: { $sum: { $cond: [{ $eq: ['$qc.disposition', 'Not Interested'] }, 1, 0] } },
       notQualified: { $sum: { $cond: [{ $eq: ['$qc.disposition', 'Not Qualified'] }, 1, 0] } },
       dnc: { $sum: { $cond: [{ $eq: ['$qc.disposition', 'DNC'] }, 1, 0] } },
