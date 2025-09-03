@@ -49,7 +49,38 @@ const CallRecordSchema = new mongoose.Schema(
     transcript: { type: String, trim: true },
     labeledTranscript: { type: String, trim: true },
     qc: QCSchema,
-    ringbaRaw: Object
+    ringbaRaw: Object,
+        status: {
+      type: String,
+      enum: [
+        "processing",
+        "transcribing",
+        "labeling_speakers",
+        "analyzing_disposition",
+        "processed",
+        "failed",
+        "transcription_failed",
+        "labeling_failed",
+        "analysis_failed"
+      ],
+      default: "processing",
+      index: true,
+      trim: true
+    },
+    error: { 
+      type: String, 
+      trim: true 
+    },
+    processingStartTime: { 
+      type: Date 
+    },
+    processingEndTime: { 
+      type: Date 
+    },
+    processingTime: { 
+      type: Number, // in seconds
+      default: 0 
+    }
   },
   { timestamps: true }
 );
@@ -59,5 +90,36 @@ CallRecordSchema.index({
   "qc.summary": "text",
   "qc.reason": "text"
 });
+
+// Virtual for calculating processing time
+CallRecordSchema.virtual('calculatedProcessingTime').get(function() {
+  if (this.processingStartTime && this.processingEndTime) {
+    return Math.round((this.processingEndTime - this.processingStartTime) / 1000);
+  }
+  return 0;
+});
+
+// Method to mark as failed
+CallRecordSchema.methods.markAsFailed = function(errorMessage) {
+  this.status = "failed";
+  this.error = errorMessage;
+  this.processingEndTime = new Date();
+  this.processingTime = this.calculatedProcessingTime;
+  return this.save();
+};
+
+// Static method to find failed calls
+CallRecordSchema.statics.findFailedCalls = function() {
+  return this.find({
+    status: { $in: ["failed", "transcription_failed", "labeling_failed", "analysis_failed"] }
+  });
+};
+
+// Static method to find processing calls
+CallRecordSchema.statics.findProcessingCalls = function() {
+  return this.find({
+    status: { $in: ["processing", "transcribing", "labeling_speakers", "analyzing_disposition"] }
+  });
+};
 
 module.exports = mongoose.model("CallRecord", CallRecordSchema);

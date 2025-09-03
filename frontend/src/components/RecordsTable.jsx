@@ -163,7 +163,8 @@ export default function RecordsTable({
         <div className="ms-auto d-flex gap-2">
           <button
             type="button"
-            className="btn btn-sm btn-outline-secondary dropdown-toggle"
+            className="btn btn-sm dropdown-toggle"
+            style={{ backgroundColor: "#ff6600", color: "#fff" }}
             data-bs-toggle="dropdown"
             aria-expanded="false"
           >
@@ -172,7 +173,8 @@ export default function RecordsTable({
           <ul className="dropdown-menu dropdown-menu-end">
             <li>
               <button className="dropdown-item" onClick={() => onExport("csv")}>
-                <i className="bi bi-filetype-csv me-2" /> CSV
+                <i className="bi bi-filetype-csv me-2"
+                style={{ backgroundColor: "#ff6600", color: "#fff" }} /> CSV
               </button>
             </li>
             <li>
