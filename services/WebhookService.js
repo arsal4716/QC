@@ -142,7 +142,7 @@ class WebhookService {
     return {
       systemCallId: payload.system_call_id,
       systemPublisherId: payload.system_publisher_id,
-      target_name: payload.system_publisher_id,
+      target_name: payload.target_name,
       systemBuyerId: payload.system_buyer_id,
       systemName: payload.system_name,
       callTimestamp: payload.call_timestamp,
