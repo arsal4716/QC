@@ -6,17 +6,96 @@ const Campaign = require("../models/Campaign");
 const Publisher = require("../models/Publisher");
 
 class WebhookService {
-  async processRingbaWebhook(payload) {
-    try {
-      const callData = this.transformPayload(payload);
-      await this.ensureCampaignPublisher(callData);
+  constructor() {
+    this.processingQueue = [];
+    this.isProcessing = false;
+    this.maxConcurrent = 2;
+    this.currentProcesses = 0;
+    this.retryAttempts = new Map(); 
+        this.processQueue();
+  }
 
-      const result = await this.processCall(callData);
-      return { success: true, data: result };
-    } catch (error) {
-      console.error("Webhook processing error:", error);
-      throw error;
+  async addToProcessingQueue(payload) {
+    const queueItem = {
+      payload,
+      attempts: 0,
+      maxAttempts: 3,
+      nextRetry: Date.now(),
+      addedAt: new Date()
+    };
+    
+    this.processingQueue.push(queueItem);
+    console.log(`Added to queue. Queue size: ${this.processingQueue.length}`);
+    
+    // Ensure queue processing is running
+    if (!this.isProcessing) {
+      this.processQueue();
     }
+  }
+
+  // Process the queue
+  async processQueue() {
+    if (this.isProcessing) return;
+    
+    this.isProcessing = true;
+    
+    const processNext = async () => {
+      // Check if we can process more items
+      if (this.currentProcesses >= this.maxConcurrent || this.processingQueue.length === 0) {
+        if (this.processingQueue.length === 0) {
+          this.isProcessing = false;
+        }
+        setTimeout(processNext, 1000); // Check again in 1 second
+        return;
+      }
+      
+      // Find the next item to process (prioritize items that are ready for retry)
+      const now = Date.now();
+      const nextIndex = this.processingQueue.findIndex(item => item.nextRetry <= now);
+      
+      if (nextIndex === -1) {
+        setTimeout(processNext, 1000); // Check again in 1 second
+        return;
+      }
+      
+      // Get the next item
+      const queueItem = this.processingQueue.splice(nextIndex, 1)[0];
+      this.currentProcesses++;
+      
+      try {
+        console.log(`Processing call ${queueItem.payload.system_call_id}, Attempt: ${queueItem.attempts + 1}`);
+        await this.processRingbaWebhook(queueItem.payload);
+        console.log(`Successfully processed call ${queueItem.payload.system_call_id}`);
+        this.currentProcesses--;
+      } catch (error) {
+        console.error(`Error processing call ${queueItem.payload.system_call_id}:`, error.message);
+        this.currentProcesses--;
+        
+        // Check if we should retry
+        if (queueItem.attempts < queueItem.maxAttempts - 1) {
+          queueItem.attempts++;
+          queueItem.nextRetry = Date.now() + (Math.pow(2, queueItem.attempts) * 5000); // Exponential backoff
+          this.processingQueue.push(queueItem);
+          console.log(`Scheduled retry ${queueItem.attempts} for call ${queueItem.payload.system_call_id}`);
+        } else {
+          console.error(`Max retries exceeded for call ${queueItem.payload.system_call_id}`);
+          // You might want to save failed attempts to a separate log or database
+        }
+      }
+      
+      // Process next item
+      setTimeout(processNext, 100);
+    };
+    
+    processNext();
+  }
+
+  async processRingbaWebhook(payload) {
+    const callData = this.transformPayload(payload);
+    await this.ensureCampaignPublisher(callData);
+
+    const result = await this.processCall(callData);
+    return { success: true, data: result };
   }
 
   transformPayload(payload) {
@@ -91,4 +170,5 @@ class WebhookService {
   }
 }
 
+// Export singleton instance
 module.exports = new WebhookService();
