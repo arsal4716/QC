@@ -1,8 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
-const helmet = require("helmet");
-const compression = require("compression");
+// const helmet = require("helmet");
 const morgan = require("morgan");
 const connectDB = require("./config/db.js")
 const path = require('path');
@@ -15,7 +14,7 @@ app.use(cors({
   credentials: true,                 
 }));
 app.use(express.json({ limit: "10mb" }));
-app.use(helmet());
+// app.use(helmet());
 app.use(morgan("dev"));
 app.use('/webhook', require('./routes/callRoutes.js'));
 app.use('/api/stats', require('./routes/stats'));        

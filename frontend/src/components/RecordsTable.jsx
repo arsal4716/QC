@@ -225,7 +225,7 @@ const fetchData = useCallback(
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={(columns?.length ?? 0) + 1} className="text-center text-white">
+                <td colSpan={(columns?.length ?? 0) + 1} className="text-center text-dark">
                   <div className="spinner-border spinner-border-sm me-2" role="status" />
                   Loading...
                 </td>
