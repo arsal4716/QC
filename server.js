@@ -16,7 +16,6 @@ app.use(cors({
 }));
 app.use(express.json({ limit: "10mb" }));
 app.use(helmet());
-app.use(compression());
 app.use(morgan("dev"));
 app.use('/webhook', require('./routes/callRoutes.js'));
 app.use('/api/stats', require('./routes/stats'));        
