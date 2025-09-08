@@ -57,7 +57,7 @@ export default function TopBar({
           <i className="bi bi-arrow-clockwise" /> Auto Refresh
         </button>
       </div>
-
+      
       <CampaignModal
         id="campaignModal"
         onApply={(selectedCampaigns) => {

@@ -6,7 +6,7 @@ import { toast } from "react-toastify";
 import { getRecords, getCallDetail, exportRecords } from "../api/callsApi";
 import {formatRingbaDate} from '../utils/dateFormatter'
 export default function RecordsTable({
-  filters,
+  filters, 
   refreshKey,
   selectedCampaigns = [],
   selectedPublishers = [],
@@ -29,8 +29,8 @@ export default function RecordsTable({
   const [showSettings, setShowSettings] = useState(false);
   const [detail, setDetail] = useState(null);
 
-  const fetchData = useCallback(
-    async (pageNumber = page) => {
+const fetchData = useCallback(
+    async (pageNumber = 1) => { 
       setLoading(true);
       try {
         const params = {
@@ -48,8 +48,6 @@ export default function RecordsTable({
         }
 
         const response = await getRecords(params);
-        
-        // Response should now have data and meta properties
         const records = response.data || [];
         const responseMeta = response.meta || {
           total: records.length,
@@ -76,16 +74,13 @@ export default function RecordsTable({
         setLoading(false);
       }
     },
-    [page, limit, sortBy, sortDir, filters, search, selectedCampaigns, selectedPublishers]
+    [limit, sortBy, sortDir, filters, search, selectedCampaigns, selectedPublishers] 
   );
-
-  // Reset to page 1 when filters, sort, or search changes
   useEffect(() => {
     setPage(1);
     fetchData(1);
-  }, [filters, refreshKey, sortBy, sortDir, search]);
+  }, [filters, refreshKey, sortBy, sortDir, selectedCampaigns, selectedPublishers, fetchData]);
 
-  // Debounced search
   useEffect(() => {
     const timer = setTimeout(() => {
       if (search.trim() !== "") {
@@ -97,6 +92,7 @@ export default function RecordsTable({
     return () => clearTimeout(timer);
   }, [search, fetchData]);
 
+ 
   const handlePageChange = (newPage) => {
     if (newPage < 1 || newPage > meta.pages) return;
     setPage(newPage);

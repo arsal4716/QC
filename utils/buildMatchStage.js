@@ -86,8 +86,7 @@ function normalizeArray(val) {
 
 
 function buildMatchStage(q) {
-  const match = {};
-
+  const andConditions = [];
   const { startUTC, endUTC } = estRangeToUTC({
     preset: q.datePreset || q.preset,
     startISO: q.startDate,
@@ -95,38 +94,58 @@ function buildMatchStage(q) {
   });
 
   if (startUTC || endUTC) {
-    match.callTimestamp = {};
-    if (startUTC) match.callTimestamp.$gte = startUTC;
-    if (endUTC) match.callTimestamp.$lte = endUTC;
+    const range = {};
+    if (startUTC) range.$gte = startUTC;
+    if (endUTC) range.$lte = endUTC;
+    andConditions.push({ callTimestamp: range });
   }
 
   const campaigns = normalizeArray(q.campaign);
   if (campaigns) {
-    match.campaignName =
-      campaigns.length === 1 ? campaigns[0] : { $in: campaigns };
+    andConditions.push({
+      campaignName: campaigns.length === 1 ? campaigns[0] : { $in: campaigns },
+    });
   }
 
   const publishers = normalizeArray(q.publisher);
   if (publishers) {
-    match.$or = [
-      { publisherName: { $in: publishers } },
-      { systemPublisherId: { $in: publishers } }, 
-    ];
+    andConditions.push({
+      $or: [
+        { publisherName: { $in: publishers } },
+        { systemPublisherId: { $in: publishers } },
+      ],
+    });
   }
 
   const dispositions = normalizeArray(q.disposition);
   if (dispositions && !dispositions.includes("all")) {
-    match["qc.disposition"] =
-      dispositions.length === 1 ? dispositions[0] : { $in: dispositions };
+    andConditions.push({
+      "qc.disposition":
+        dispositions.length === 1 ? dispositions[0] : { $in: dispositions },
+    });
   }
 
-  if (q.status) match.status = q.status;
+  if (q.status) andConditions.push({ status: q.status });
   if (q.callerId)
-    match.callerId = { $regex: String(q.callerId), $options: "i" };
-  if (q.systemCallId) match.systemCallId = q.systemCallId;
+    andConditions.push({ callerId: { $regex: String(q.callerId), $options: "i" } });
+  if (q.systemCallId) andConditions.push({ systemCallId: q.systemCallId });
+  if (q.search) {
+    const re = new RegExp(q.search, "i");
+    andConditions.push({
+      $or: [
+        { callerId: re },
+        { campaignName: re },
+        { publisherName: re },
+        { "qc.reason": re },
+        { "qc.summary": re },
+        { transcript: re },
+      ],
+    });
+  }
 
-  return match;
+  return andConditions.length ? { $and: andConditions } : {};
 }
+
 
 
 module.exports = { buildMatchStage };

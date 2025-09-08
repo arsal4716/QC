@@ -36,6 +36,7 @@ const CallRecordSchema = new mongoose.Schema(
     systemCallId: { type: String, trim: true, index: true, unique: true },
     systemPublisherId: { type: String, trim: true, index: true },
     systemBuyerId: { type: String, trim: true, index: true },
+    target_name: { type: String, trim: true, index: true },
     systemName: { type: String, trim: true, index: true },
     callTimestamp: { type: Date, index: true },
     campaignName: { type: String, trim: true, index: true },
@@ -43,7 +44,6 @@ const CallRecordSchema = new mongoose.Schema(
     callerId: { type: String, trim: true, index: true },
     inboundPhoneNumber: { type: String, trim: true },
     dialedNumber: { type: String, trim: true },
-    durationSec: Number,
     cost: Number,
     recordingUrl: { type: String, trim: true },
     transcript: { type: String, trim: true },
@@ -78,7 +78,7 @@ const CallRecordSchema = new mongoose.Schema(
       type: Date 
     },
     processingTime: { 
-      type: Number, // in seconds
+      type: Number,
       default: 0 
     }
   },
@@ -90,8 +90,6 @@ CallRecordSchema.index({
   "qc.summary": "text",
   "qc.reason": "text"
 });
-
-// Virtual for calculating processing time
 CallRecordSchema.virtual('calculatedProcessingTime').get(function() {
   if (this.processingStartTime && this.processingEndTime) {
     return Math.round((this.processingEndTime - this.processingStartTime) / 1000);
@@ -99,7 +97,6 @@ CallRecordSchema.virtual('calculatedProcessingTime').get(function() {
   return 0;
 });
 
-// Method to mark as failed
 CallRecordSchema.methods.markAsFailed = function(errorMessage) {
   this.status = "failed";
   this.error = errorMessage;
@@ -107,15 +104,11 @@ CallRecordSchema.methods.markAsFailed = function(errorMessage) {
   this.processingTime = this.calculatedProcessingTime;
   return this.save();
 };
-
-// Static method to find failed calls
 CallRecordSchema.statics.findFailedCalls = function() {
   return this.find({
     status: { $in: ["failed", "transcription_failed", "labeling_failed", "analysis_failed"] }
   });
 };
-
-// Static method to find processing calls
 CallRecordSchema.statics.findProcessingCalls = function() {
   return this.find({
     status: { $in: ["processing", "transcribing", "labeling_speakers", "analyzing_disposition"] }
