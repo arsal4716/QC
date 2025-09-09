@@ -10,7 +10,6 @@ exports.getStats = async (req, res) => {
     const stats = await statsService.getStats(filters);
     return success(res, stats);
   } catch (err) {
-    console.error("Stats Controller Error:", err);
     return error(res, { 
       status: 500, 
       message: "Failed to fetch statistics" 
@@ -39,10 +38,8 @@ exports.getRecords = async (req, res) => {
     const options = { page, limit, sortBy, sortDir, search };
 
     const result = await recordsService.getRecords(filters, options);
-    console.log("records response", result);
     return success(res, result);
   } catch (err) {
-    console.error("Records Controller Error:", err);
     return error(res, { 
       status: 500, 
       message: "Failed to fetch records" 
@@ -57,7 +54,6 @@ exports.getRecordDetail = async (req, res) => {
     const record = await recordsService.getRecordById(id);
     return success(res, record);
   } catch (err) {
-    console.error("Record Detail Error:", err);
     return error(res, { 
       status: 404, 
       message: "Record not found" 
@@ -87,8 +83,13 @@ function mapRecordForExport(r) {
 
 exports.exportRecords = async (req, res) => {
   try {
-    const { fmt = "csv" } = req.query;
-    const records = await recordsService.exportRecords(req.query) || [];
+const { fmt = "csv", datePreset, startDate, endDate, campaign, publisher, disposition, status } = req.query;
+const dispositions = disposition
+  ? disposition.split(",").map((d) => d.trim())
+  : [];
+
+const filters = { datePreset, startDate, endDate, campaign, publisher, status, disposition: dispositions };
+    const records = await recordsService.exportRecords(filters) || [];
     const mapped = records.map(mapRecordForExport);
 
     if (!mapped.length) {
@@ -101,11 +102,10 @@ exports.exportRecords = async (req, res) => {
       sheet.columns = Object.keys(mapped[0]).map((k) => ({ header: k, key: k }));
       mapped.forEach((row) => sheet.addRow(row));
 
+      const buffer = await workbook.xlsx.writeBuffer();
       res.setHeader("Content-Disposition", "attachment; filename=call-records.xlsx");
       res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-
-      await workbook.xlsx.write(res);
-      res.end();
+      res.send(buffer);
     } else {
       const headers = Object.keys(mapped[0]).join(",");
       const rows = mapped.map((r) =>
@@ -114,12 +114,13 @@ exports.exportRecords = async (req, res) => {
           .join(",")
       );
 
-      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
       res.setHeader("Content-Disposition", "attachment; filename=call-records.csv");
       res.send([headers, ...rows].join("\n"));
     }
   } catch (err) {
-    console.error("Export Error:", err);
+    console.error("Export error:", err);
     res.status(500).json({ success: false, message: "Failed to export records" });
   }
 };
+

@@ -1,84 +1,157 @@
 const slugify = require('slugify');
+const { Queue, Worker, QueueEvents } = require('bullmq');
+const Redis = require('ioredis');
 const CallRecord = require("../models/CallRecord");
 const { transcribe } = require("./deepgramService");
 const { labelSpeakers, analyzeDisposition } = require("./openaiService");
 const Campaign = require("../models/Campaign");
 const Publisher = require("../models/Publisher");
+const { ObjectId } = require('mongoose').Types;
 
 class WebhookService {
   constructor() {
-    this.processingQueue = [];
-    this.isProcessing = false;
-    this.maxConcurrent = 2;
-    this.currentProcesses = 0;
-    this.retryAttempts = new Map(); 
-        this.processQueue();
+    // Redis connection for BullMQ
+    this.redisConnection = new Redis(process.env.REDIS_URL || {
+      maxRetriesPerRequest: null,
+      enableReadyCheck: false
+    });
+
+    // Create processing queue
+    this.processingQueue = new Queue('call-processing', {
+      connection: this.redisConnection,
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 5000
+        },
+        removeOnComplete: {
+          age: 24 * 3600, // keep completed jobs for 24 hours
+          count: 1000 // keep up to 1000 completed jobs
+        },
+        removeOnFail: {
+          age: 7 * 24 * 3600, // keep failed jobs for 7 days
+        }
+      }
+    });
+
+    // Create worker to process jobs
+    this.worker = new Worker('call-processing', this.processJob.bind(this), {
+      connection: this.redisConnection,
+      concurrency: 5,
+      limiter: {
+        max: 10,
+        duration: 1000
+      }
+    });
+
+    // Set up event listeners
+    this.setupEventListeners();
   }
 
-  async addToProcessingQueue(payload) {
-    const queueItem = {
-      payload,
-      attempts: 0,
-      maxAttempts: 3,
-      nextRetry: Date.now(),
-      addedAt: new Date()
-    };
+  async setupEventListeners() {
+    this.worker.on('completed', (job) => {
+      console.log(`Job ${job.id} completed successfully`);
+    });
+
+    this.worker.on('failed', (job, err) => {
+      console.error(`Job ${job.id} failed with error: ${err.message}`);
+    });
+
+    this.worker.on('error', (err) => {
+      console.error('Worker error:', err);
+    });
+  }
+
+
+async addToProcessingQueue(payload) {
+  try {
+    const callData = this.transformPayload(payload);
+    await this.ensureCampaignPublisher(callData);
     
-    this.processingQueue.push(queueItem);    
-    if (!this.isProcessing) {
-      this.processQueue();
+    const callRecord = await CallRecord.create({
+      ...callData,
+      callStatus: "queued"
+    });
+
+    // Use MongoDB ObjectId as job ID
+    const jobId = callRecord._id.toString();
+    
+    const job = await this.processingQueue.add(
+      'process-call',
+      { payload, callRecordId: callRecord._id.toString() },
+      {
+        jobId: jobId,
+        priority: 1 
+      }
+    );
+
+    console.log(`Job added to queue: ${job.id}`);
+    return job;
+  } catch (error) {
+    console.error('Error adding to processing queue:', error);
+    throw error;
+  }
+}
+
+  async processJob(job) {
+    const { payload, callRecordId } = job.data;
+    
+    try {
+      const callData = this.transformPayload(payload);
+      
+      // Update call status to processing
+      await CallRecord.findByIdAndUpdate(callRecordId, {
+        callStatus: "processing",
+        processingStartTime: new Date()
+      });
+
+      await CallRecord.findByIdAndUpdate(callRecordId, {
+        callStatus: "transcribing"
+      });
+      
+      const transcription = await transcribe(callData.recordingUrl);
+      await CallRecord.findByIdAndUpdate(callRecordId, {
+        callStatus: "labeling_speakers",
+        transcript: transcription.transcript,
+        cost: transcription.estCost || 0
+      });
+      const labeledTranscript = await labelSpeakers(transcription.transcript);
+      await CallRecord.findByIdAndUpdate(callRecordId, {
+        callStatus: "analyzing_disposition",
+        labeledTranscript
+      });
+
+      const qc = await analyzeDisposition(labeledTranscript, callData.campaignName);
+      
+      await CallRecord.findByIdAndUpdate(callRecordId, {
+        callStatus: "completed",
+        status: qc.disposition, 
+        qc,
+        processingEndTime: new Date()
+      });
+
+      return { success: true };
+
+    } catch (error) {
+      // Update call record with error
+      const errorStatus = this.getErrorStatus(error);
+      await CallRecord.findByIdAndUpdate(callRecordId, {
+        callStatus: errorStatus,
+        error: error.message,
+        processingEndTime: new Date()
+      });
+      
+      throw error; // Let BullMQ handle retries
     }
   }
 
-  async processQueue() {
-    if (this.isProcessing) return;
-    
-    this.isProcessing = true;
-    
-    const processNext = async () => {
-      if (this.currentProcesses >= this.maxConcurrent || this.processingQueue.length === 0) {
-        if (this.processingQueue.length === 0) {
-          this.isProcessing = false;
-        }
-        setTimeout(processNext, 1000);
-        return;
-      }
-            const now = Date.now();
-      const nextIndex = this.processingQueue.findIndex(item => item.nextRetry <= now);
-      
-      if (nextIndex === -1) {
-        setTimeout(processNext, 1000);
-        return;
-      }
-            const queueItem = this.processingQueue.splice(nextIndex, 1)[0];
-      this.currentProcesses++;
-      
-      try {
-        await this.processRingbaWebhook(queueItem.payload);
-        this.currentProcesses--;
-      } catch (error) {
-        console.error(`Error processing call ${queueItem.payload.system_call_id}:`, error.message);
-        this.currentProcesses--;
-                if (queueItem.attempts < queueItem.maxAttempts - 1) {
-          queueItem.attempts++;
-          queueItem.nextRetry = Date.now() + (Math.pow(2, queueItem.attempts) * 5000); 
-          this.processingQueue.push(queueItem);
-        } else {
-          console.error(`Max retries exceeded for call ${queueItem.payload.system_call_id}`);
-        }
-      }
-            setTimeout(processNext, 100);
-    };
-    
-    processNext();
-  }
-
-  async processRingbaWebhook(payload) {
-    const callData = this.transformPayload(payload);
-    await this.ensureCampaignPublisher(callData);
-
-    const result = await this.processCall(callData);
-    return { success: true, data: result };
+  getErrorStatus(error) {
+    const errorMessage = error.message.toLowerCase();
+    if (errorMessage.includes('transcription')) return 'transcription_failed';
+    if (errorMessage.includes('speaker') || errorMessage.includes('label')) return 'labeling_failed';
+    if (errorMessage.includes('disposition') || errorMessage.includes('analysis')) return 'analysis_failed';
+    return 'failed';
   }
 
   transformPayload(payload) {
@@ -136,19 +209,31 @@ class WebhookService {
     });
   }
 
-  async processCall(callData) {
-    const transcription = await transcribe(callData.recordingUrl);
-    const labeledTranscript = await labelSpeakers(transcription.transcript);
-    const qc = await analyzeDisposition(labeledTranscript, callData.campaignName);
+  // Utility methods for monitoring
+  async getQueueStats() {
+    const [waiting, active, completed, failed, delayed] = await Promise.all([
+      this.processingQueue.getWaitingCount(),
+      this.processingQueue.getActiveCount(),
+      this.processingQueue.getCompletedCount(),
+      this.processingQueue.getFailedCount(),
+      this.processingQueue.getDelayedCount()
+    ]);
+    
+    return {
+      waiting,
+      active,
+      completed,
+      failed,
+      delayed,
+      total: waiting + active + completed + failed + delayed
+    };
+  }
 
-    return await CallRecord.create({
-      ...callData,
-      cost: transcription.estCost || 0,
-      transcript: transcription.transcript,
-      labeledTranscript,
-      qc,
-      status: "processed"
-    });
+  async close() {
+    await this.worker.close();
+    await this.processingQueue.close();
+    await this.redisConnection.quit();
   }
 }
+
 module.exports = new WebhookService();

@@ -50,23 +50,33 @@ const CallRecordSchema = new mongoose.Schema(
     labeledTranscript: { type: String, trim: true },
     qc: QCSchema,
     ringbaRaw: Object,
-        status: {
+    
+    // Customer disposition status (from QC analysis)
+    status: {
+      type: String,
+      trim: true,
+      index: true
+    },
+    
+    callStatus: {
       type: String,
       enum: [
+        "queued",
         "processing",
         "transcribing",
         "labeling_speakers",
         "analyzing_disposition",
-        "processed",
+        "completed",
         "failed",
         "transcription_failed",
         "labeling_failed",
         "analysis_failed"
       ],
-      default: "processing",
+      default: "queued",
       index: true,
       trim: true
     },
+    
     error: { 
       type: String, 
       trim: true 
@@ -90,6 +100,7 @@ CallRecordSchema.index({
   "qc.summary": "text",
   "qc.reason": "text"
 });
+
 CallRecordSchema.virtual('calculatedProcessingTime').get(function() {
   if (this.processingStartTime && this.processingEndTime) {
     return Math.round((this.processingEndTime - this.processingStartTime) / 1000);
@@ -97,21 +108,23 @@ CallRecordSchema.virtual('calculatedProcessingTime').get(function() {
   return 0;
 });
 
-CallRecordSchema.methods.markAsFailed = function(errorMessage) {
-  this.status = "failed";
+CallRecordSchema.methods.markAsFailed = function(errorMessage, callStatus = "failed") {
+  this.callStatus = callStatus;
   this.error = errorMessage;
   this.processingEndTime = new Date();
   this.processingTime = this.calculatedProcessingTime;
   return this.save();
 };
+
 CallRecordSchema.statics.findFailedCalls = function() {
   return this.find({
-    status: { $in: ["failed", "transcription_failed", "labeling_failed", "analysis_failed"] }
+    callStatus: { $in: ["failed", "transcription_failed", "labeling_failed", "analysis_failed"] }
   });
 };
+
 CallRecordSchema.statics.findProcessingCalls = function() {
   return this.find({
-    status: { $in: ["processing", "transcribing", "labeling_speakers", "analyzing_disposition"] }
+    callStatus: { $in: ["processing", "transcribing", "labeling_speakers", "analyzing_disposition"] }
   });
 };
 

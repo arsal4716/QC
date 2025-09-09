@@ -2,10 +2,9 @@ const User = require('../models/User');
 
 exports.getAllUsers = async (req, res) => {
   try {
-    const users = await User.find().select('-password'); // Exclude passwords
+    const users = await User.find().select('-password');
     res.json({ success: true, users });
   } catch (error) {
-    console.error('Error fetching users:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch users' });
   }
 };
@@ -18,7 +17,6 @@ exports.getUserById = async (req, res) => {
     }
     res.json({ success: true, user });
   } catch (error) {
-    console.error('Error fetching user:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch user' });
   }
 };

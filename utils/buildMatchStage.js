@@ -84,7 +84,6 @@ function normalizeArray(val) {
   return null;
 }
 
-
 function buildMatchStage(q) {
   const andConditions = [];
   const { startUTC, endUTC } = estRangeToUTC({
@@ -117,7 +116,9 @@ function buildMatchStage(q) {
     });
   }
 
-  const dispositions = normalizeArray(q.disposition);
+  const dispositions = normalizeArray(q.disposition)?.map((d) =>
+    d.toLowerCase()
+  );
   if (dispositions && !dispositions.includes("all")) {
     andConditions.push({
       "qc.disposition":
@@ -127,7 +128,9 @@ function buildMatchStage(q) {
 
   if (q.status) andConditions.push({ status: q.status });
   if (q.callerId)
-    andConditions.push({ callerId: { $regex: String(q.callerId), $options: "i" } });
+    andConditions.push({
+      callerId: { $regex: String(q.callerId), $options: "i" },
+    });
   if (q.systemCallId) andConditions.push({ systemCallId: q.systemCallId });
   if (q.search) {
     const re = new RegExp(q.search, "i");
@@ -145,7 +148,5 @@ function buildMatchStage(q) {
 
   return andConditions.length ? { $and: andConditions } : {};
 }
-
-
 
 module.exports = { buildMatchStage };

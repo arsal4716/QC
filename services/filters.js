@@ -15,7 +15,6 @@ class FiltersService {
 
     if (all) {
       const items = await Model.find(q, projection).sort({ name: 1 }).lean();
-      console.log('filter data',items)
       return {
         items,
         meta: { page: 1, limit: items.length, total: items.length, pages: 1 }

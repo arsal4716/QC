@@ -4,9 +4,10 @@ import ColumnSettingsModal from "./ColumnSettingsModal";
 import DetailModal from "./DetailModal";
 import { toast } from "react-toastify";
 import { getRecords, getCallDetail, exportRecords } from "../api/callsApi";
-import {formatRingbaDate} from '../utils/dateFormatter'
+import { formatRingbaDate } from "../utils/dateFormatter";
+import FilterBar from "./Filters/FilterBar";
 export default function RecordsTable({
-  filters, 
+  filters,
   refreshKey,
   selectedCampaigns = [],
   selectedPublishers = [],
@@ -18,7 +19,7 @@ export default function RecordsTable({
     total: 0,
     pages: 1,
     page: 1,
-    limit: 25
+    limit: 25,
   });
   const [page, setPage] = useState(1);
   const [limit] = useState(25);
@@ -28,9 +29,8 @@ export default function RecordsTable({
   const [loading, setLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [detail, setDetail] = useState(null);
-
-const fetchData = useCallback(
-    async (pageNumber = 1) => { 
+  const fetchData = useCallback(
+    async (pageNumber = 1) => {
       setLoading(true);
       try {
         const params = {
@@ -41,8 +41,9 @@ const fetchData = useCallback(
           ...filters,
           campaign: selectedCampaigns.join(","),
           publisher: selectedPublishers.join(","),
+          disposition: (filters?.disposition || []).join(","),
         };
-        
+
         if (search.trim()) {
           params.search = search.trim();
         }
@@ -74,12 +75,28 @@ const fetchData = useCallback(
         setLoading(false);
       }
     },
-    [limit, sortBy, sortDir, filters, search, selectedCampaigns, selectedPublishers] 
+    [
+      limit,
+      sortBy,
+      sortDir,
+      filters,
+      search,
+      selectedCampaigns,
+      selectedPublishers,
+    ]
   );
   useEffect(() => {
     setPage(1);
     fetchData(1);
-  }, [filters, refreshKey, sortBy, sortDir, selectedCampaigns, selectedPublishers, fetchData]);
+  }, [
+    filters,
+    refreshKey,
+    sortBy,
+    sortDir,
+    selectedCampaigns,
+    selectedPublishers,
+    fetchData,
+  ]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -92,7 +109,6 @@ const fetchData = useCallback(
     return () => clearTimeout(timer);
   }, [search, fetchData]);
 
- 
   const handlePageChange = (newPage) => {
     if (newPage < 1 || newPage > meta.pages) return;
     setPage(newPage);
@@ -110,8 +126,15 @@ const fetchData = useCallback(
 
   async function onExport(fmt = "csv") {
     try {
-      const blob = await exportRecords(filters, fmt);
-      const url = window.URL.createObjectURL(new Blob([blob]));
+      const params = {
+        ...filters,
+        campaign: selectedCampaigns.join(","),
+        publisher: selectedPublishers.join(","),
+        disposition: (filters?.disposition || []).join(","),
+      };
+
+      const blob = await exportRecords(params, fmt);
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
       link.setAttribute("download", `records.${fmt}`);
@@ -124,13 +147,21 @@ const fetchData = useCallback(
       toast.error("Export failed");
     }
   }
+  const handleClearFilter = () => {
+    setSearch("");
+    fetchData(1);
+    toast.info("Filters cleared");
+  };
 
   if (!context) {
     return <div className="text-danger">Columns not provided</div>;
   }
 
   return (
-    <div className="card" style={{ backgroundColor: "#17233d", fontSize: "12px" }}>
+    <div
+      className="card"
+      style={{ backgroundColor: "#17233d", fontSize: "12px" }}
+    >
       <div className="card-header d-flex align-items-center">
         <div className="input-group me-2" style={{ maxWidth: 300 }}>
           <input
@@ -169,8 +200,11 @@ const fetchData = useCallback(
           <ul className="dropdown-menu dropdown-menu-end">
             <li>
               <button className="dropdown-item" onClick={() => onExport("csv")}>
-                <i className="bi bi-filetype-csv me-2"
-                style={{ backgroundColor: "#ff6600", color: "#fff" }} /> CSV
+                <i
+                  className="bi bi-filetype-csv me-2"
+                  style={{ backgroundColor: "#ff6600", color: "#fff" }}
+                />{" "}
+                CSV
               </button>
             </li>
             <li>
@@ -207,13 +241,22 @@ const fetchData = useCallback(
                     <button
                       className="btn btn-sm btn-link text-light ms-2"
                       onClick={() => {
-                        const newSortDir = sortBy === col.key && sortDir === "desc" ? "asc" : "desc";
+                        const newSortDir =
+                          sortBy === col.key && sortDir === "desc"
+                            ? "asc"
+                            : "desc";
                         setSortBy(col.key);
                         setSortDir(newSortDir);
                         setPage(1);
                       }}
                     >
-                      <i className={`bi bi-arrow-${sortBy === col.key && sortDir === "asc" ? "up" : "down"}`} />
+                      <i
+                        className={`bi bi-arrow-${
+                          sortBy === col.key && sortDir === "asc"
+                            ? "up"
+                            : "down"
+                        }`}
+                      />
                     </button>
                   </th>
                 ))}
@@ -225,14 +268,23 @@ const fetchData = useCallback(
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={(columns?.length ?? 0) + 1} className="text-center text-dark">
-                  <div className="spinner-border spinner-border-sm me-2" role="status" />
+                <td
+                  colSpan={(columns?.length ?? 0) + 1}
+                  className="text-center text-dark"
+                >
+                  <div
+                    className="spinner-border spinner-border-sm me-2"
+                    role="status"
+                  />
                   Loading...
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={(columns?.length ?? 0) + 1} className="text-center text-white">
+                <td
+                  colSpan={(columns?.length ?? 0) + 1}
+                  className="text-center text-dark"
+                >
                   No records found
                 </td>
               </tr>
@@ -279,7 +331,11 @@ const fetchData = useCallback(
                         <li>
                           <button
                             className="dropdown-item"
-                            onClick={() => navigator.clipboard.writeText(JSON.stringify(r, null, 2))}
+                            onClick={() =>
+                              navigator.clipboard.writeText(
+                                JSON.stringify(r, null, 2)
+                              )
+                            }
                           >
                             Copy JSON
                           </button>
@@ -294,13 +350,12 @@ const fetchData = useCallback(
         </table>
       </div>
 
-      {/* Footer with Pagination */}
       <div className="card-footer d-flex align-items-center justify-content-between">
         <div className="text-white">
           Showing {rows.length} of {meta.total} records
           {meta.pages > 1 && ` (Page ${page} of ${meta.pages})`}
         </div>
-        
+
         {meta.pages > 1 && (
           <div className="d-flex align-items-center gap-2">
             <button
@@ -310,11 +365,11 @@ const fetchData = useCallback(
             >
               ← Prev
             </button>
-            
+
             <span className="text-white mx-2">
               {page} / {meta.pages}
             </span>
-            
+
             <button
               className="btn btn-sm btn-outline-light"
               disabled={page >= meta.pages}
@@ -350,12 +405,12 @@ function renderCell(r, col) {
     return formatRingbaDate(val);
   }
 
-  if (typeof val === 'object') {
+  if (typeof val === "object") {
     return JSON.stringify(val);
   }
 
   let str = String(val).trim();
-  
+
   if (["qc.reason", "qc.summary", "transcript"].includes(col.key)) {
     const words = str.split(/\s+/);
     if (words.length > 3) {
@@ -367,7 +422,7 @@ function renderCell(r, col) {
 }
 
 function getByPath(obj, path) {
-  return path.split('.').reduce((acc, part) => {
+  return path.split(".").reduce((acc, part) => {
     if (acc === null || acc === undefined) return null;
     return acc[part];
   }, obj);

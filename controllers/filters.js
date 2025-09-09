@@ -13,7 +13,6 @@ exports.listCampaigns = async (req, res) => {
     const { items, meta } = await FiltersService.listCampaigns(opts);
     res.json({ campaigns: items, meta });
   } catch (e) {
-    console.error("listCampaigns error:", e);
     res.status(500).json({ message: "Failed to load campaigns" });
   }
 };
@@ -24,7 +23,6 @@ exports.listPublishers = async (req, res) => {
     const { items, meta } = await FiltersService.listPublishers(opts);
     res.json({ publishers: items, meta });
   } catch (e) {
-    console.error("listPublishers error:", e);
     res.status(500).json({ message: "Failed to load publishers" });
   }
 };
@@ -38,7 +36,6 @@ exports.listAll = async (req, res) => {
     ]);
     res.json({ campaigns: c.items, publishers: p.items, meta: { campaigns: c.meta, publishers: p.meta } });
   } catch (e) {
-    console.error("listAll error:", e);
     res.status(500).json({ message: "Failed to load filters" });
   }
 };
