@@ -20,11 +20,10 @@ app.use('/webhook', require('./routes/callRoutes.js'));
 app.use('/api/stats', require('./routes/stats'));        
 app.use('/api', require('./routes/records'));   
 app.use('/api', require('./routes/export'));
-app.use('/', require('./routes/filters.js'));
 app.use('/api/auth', require('./routes/authRoutes.js'));
 app.use('/api/', require('./routes/userRoute.js'));
+app.use('/api', require('./routes/filters.js'));
 app.use(express.static(path.join(__dirname, 'frontend/build')));
-
 app.get(/^\/(?!api).*$/, (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend/build', 'index.html'));
 });
