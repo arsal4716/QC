@@ -16,86 +16,99 @@ class QueryBuilder {
     return new QueryBuilder(model);
   }
 
-  setDateRange({ preset, startDate, endDate, timezone = "America/New_York" } = {}) {
-    if (preset || startDate || endDate) {
-      const { start, end } = this._buildDateRange(preset, startDate, endDate, timezone);
-      if (start) this.query.callTimestamp = { ...this.query.callTimestamp, $gte: start };
-      if (end) this.query.callTimestamp = { ...this.query.callTimestamp, $lte: end };
+  setDateRange({
+    preset,
+    startDate,
+    endDate,
+    timezone = "America/New_York",
+  } = {}) {
+    if (!preset && !startDate && !endDate) {
+      preset = "today";
+    }
+
+    const { start, end } = this._buildDateRange(
+      preset,
+      startDate,
+      endDate,
+      timezone
+    );
+    if (start)
+      this.query.callTimestamp = { ...this.query.callTimestamp, $gte: start };
+    if (end)
+      this.query.callTimestamp = { ...this.query.callTimestamp, $lte: end };
+
+    return this;
+  }
+
+  setCampaignFilter(campaigns) {
+    if (!campaigns) return this;
+    const list = this._normalizeArray(campaigns);
+    if (list.length) {
+      this.query.$and = this.query.$and || [];
+      this.query.$and.push({
+        $or: [{ campaignName: { $in: list } }, { campaignSlug: { $in: list } }],
+      });
     }
     return this;
   }
 
-setCampaignFilter(campaigns) {
-  if (!campaigns) return this;
-  const list = this._normalizeArray(campaigns);
-  if (list.length) {
-    this.query.$and = this.query.$and || [];
-    this.query.$and.push({
-      $or: [
-        { campaignName: { $in: list } },
-        { campaignSlug: { $in: list } }
-      ]
-    });
+  setPublisherFilter(publishers) {
+    if (!publishers) return this;
+    const list = this._normalizeArray(publishers);
+    if (list.length) {
+      this.query.$and = this.query.$and || [];
+      this.query.$and.push({
+        $or: [
+          { publisherName: { $in: list } },
+          { publisherSlug: { $in: list } },
+        ],
+      });
+    }
+    return this;
   }
-  return this;
-}
 
-setPublisherFilter(publishers) {
-  if (!publishers) return this;
-  const list = this._normalizeArray(publishers);
-  if (list.length) {
-    this.query.$and = this.query.$and || [];
-    this.query.$and.push({
-      $or: [
-        { publisherName: { $in: list } },
-        { publisherSlug: { $in: list } }
-      ]
-    });
+  setTargetFilter(targets) {
+    if (!targets) return this;
+    const list = this._normalizeArray(targets);
+    if (list.length) {
+      this.query.$and = this.query.$and || [];
+      this.query.$and.push({
+        $or: [{ target_name: { $in: list } }, { targetSlug: { $in: list } }],
+      });
+    }
+    return this;
   }
-  return this;
-}
 
-setTargetFilter(targets) {
-  if (!targets) return this;
-  const list = this._normalizeArray(targets);
-  if (list.length) {
-    this.query.$and = this.query.$and || [];
-    this.query.$and.push({
-      $or: [
-        { target_name: { $in: list } },
-        { targetSlug: { $in: list } }
-      ]
-    });
+  setBuyerFilter(buyers) {
+    if (!buyers) return this;
+    const list = this._normalizeArray(buyers);
+    if (list.length) {
+      this.query.$and = this.query.$and || [];
+      this.query.$and.push({
+        $or: [
+          { systemBuyerId: { $in: list } },
+          { systemBuyerSlug: { $in: list } },
+        ],
+      });
+    }
+    return this;
   }
-  return this;
-}
-
-setBuyerFilter(buyers) {
-  if (!buyers) return this;
-  const list = this._normalizeArray(buyers);
-  if (list.length) {
-    this.query.$and = this.query.$and || [];
-    this.query.$and.push({
-      $or: [
-        { systemBuyerId: { $in: list } },
-        { systemBuyerSlug: { $in: list } } 
-      ]
-    });
-  }
-  return this;
-}
 
   setDispositionFilter(dispositions, field = "qc.disposition") {
     if (!dispositions) return this;
     const list = this._normalizeArray(dispositions).map((d) => d.toLowerCase());
-    if (list.length) this.query[field] = list.length === 1 ? list[0] : { $in: list };
+    if (list.length)
+      this.query[field] = list.length === 1 ? list[0] : { $in: list };
     return this;
   }
 
   setSubDispositionFilter(subDispositions, field = "qc.sub_disposition") {
     if (!subDispositions) return this;
-    const list = this._normalizeArray(subDispositions).map((d) => d.toLowerCase());
-    if (list.length) this.query[field] = list.length === 1 ? list[0] : { $in: list };
+    const list = this._normalizeArray(subDispositions).map((d) =>
+      d.toLowerCase()
+    );
+    if (list.length)
+      this.query[field] = list.length === 1 ? list[0] : { $in: list };
     return this;
   }
 
@@ -168,7 +181,10 @@ setBuyerFilter(buyers) {
     }
 
     const finalQuery = this._buildFinalQuery();
-    const result = await Promise.race([this._executeQuery(finalQuery), this._timeout(15000)]);
+    const result = await Promise.race([
+      this._executeQuery(finalQuery),
+      this._timeout(15000),
+    ]);
     if (this.cacheEnabled && result) {
       await redis.setex(cacheKey, this.cacheTTL, JSON.stringify(result));
     }
@@ -181,7 +197,10 @@ setBuyerFilter(buyers) {
 
   async aggregate(pipeline = []) {
     const matchStage = { $match: this._buildFinalQuery() };
-    return this.model.aggregate([matchStage, ...pipeline]).maxTimeMS(30000).allowDiskUse(true);
+    return this.model
+      .aggregate([matchStage, ...pipeline])
+      .maxTimeMS(30000)
+      .allowDiskUse(true);
   }
 
   _setInQuery(field, value) {
@@ -195,7 +214,11 @@ setBuyerFilter(buyers) {
   _normalizeArray(value) {
     if (!value) return [];
     if (Array.isArray(value)) return value.filter((v) => v && v !== "all");
-    if (typeof value === "string") return value.split(",").map((v) => v.trim()).filter((v) => v && v !== "all");
+    if (typeof value === "string")
+      return value
+        .split(",")
+        .map((v) => v.trim())
+        .filter((v) => v && v !== "all");
     return [];
   }
 
@@ -216,22 +239,48 @@ setBuyerFilter(buyers) {
     let start, end;
     const ranges = {
       today: () => ({ start: now.startOf("day"), end: now.endOf("day") }),
-      yesterday: () => ({ start: now.minus({ days: 1 }).startOf("day"), end: now.minus({ days: 1 }).endOf("day") }),
-      last_7_days: () => ({ start: now.minus({ days: 7 }).startOf("day"), end: now.endOf("day") }),
+      yesterday: () => ({
+        start: now.minus({ days: 1 }).startOf("day"),
+        end: now.minus({ days: 1 }).endOf("day"),
+      }),
+      last_7_days: () => ({
+        start: now.minus({ days: 7 }).startOf("day"),
+        end: now.endOf("day"),
+      }),
       this_week: () => ({ start: now.startOf("week"), end: now.endOf("week") }),
-      last_week: () => ({ start: now.minus({ weeks: 1 }).startOf("week"), end: now.minus({ weeks: 1 }).endOf("week") }),
-      last_30_days: () => ({ start: now.minus({ days: 30 }).startOf("day"), end: now.endOf("day") }),
-      this_month: () => ({ start: now.startOf("month"), end: now.endOf("month") }),
-      last_month: () => ({ start: now.minus({ months: 1 }).startOf("month"), end: now.minus({ months: 1 }).endOf("month") }),
-      last_6_months: () => ({ start: now.minus({ months: 6 }).startOf("day"), end: now.endOf("day") }),
+      last_week: () => ({
+        start: now.minus({ weeks: 1 }).startOf("week"),
+        end: now.minus({ weeks: 1 }).endOf("week"),
+      }),
+      last_30_days: () => ({
+        start: now.minus({ days: 30 }).startOf("day"),
+        end: now.endOf("day"),
+      }),
+      this_month: () => ({
+        start: now.startOf("month"),
+        end: now.endOf("month"),
+      }),
+      last_month: () => ({
+        start: now.minus({ months: 1 }).startOf("month"),
+        end: now.minus({ months: 1 }).endOf("month"),
+      }),
+      last_6_months: () => ({
+        start: now.minus({ months: 6 }).startOf("day"),
+        end: now.endOf("day"),
+      }),
       this_year: () => ({ start: now.startOf("year"), end: now.endOf("year") }),
     };
     if (preset && ranges[preset]) ({ start, end } = ranges[preset]());
     else {
-      start = startDate ? DateTime.fromISO(startDate, { zone: timezone }) : null;
+      start = startDate
+        ? DateTime.fromISO(startDate, { zone: timezone })
+        : null;
       end = endDate ? DateTime.fromISO(endDate, { zone: timezone }) : null;
     }
-    return { start: start ? start.toUTC().toJSDate() : null, end: end ? end.toUTC().toJSDate() : null };
+    return {
+      start: start ? start.toUTC().toJSDate() : null,
+      end: end ? end.toUTC().toJSDate() : null,
+    };
   }
 
   _buildFinalQuery() {
@@ -246,7 +295,16 @@ setBuyerFilter(buyers) {
   }
 
   _generateCacheKey() {
-    const hash = crypto.createHash("md5").update(JSON.stringify({ q: this.query, o: this.options, ts: Math.floor(Date.now() / (this.cacheTTL * 1000)) })).digest("hex");
+    const hash = crypto
+      .createHash("md5")
+      .update(
+        JSON.stringify({
+          q: this.query,
+          o: this.options,
+          ts: Math.floor(Date.now() / (this.cacheTTL * 1000)),
+        })
+      )
+      .digest("hex");
     return `query:${this.model.modelName}:${hash}`;
   }
 
@@ -261,7 +319,9 @@ setBuyerFilter(buyers) {
   }
 
   _timeout(ms) {
-    return new Promise((_, reject) => setTimeout(() => reject(new Error(`Query timeout after ${ms}ms`)), ms));
+    return new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`Query timeout after ${ms}ms`)), ms)
+    );
   }
 }
 
