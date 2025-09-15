@@ -1,6 +1,8 @@
-import React from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { toast } from "react-toastify";
-import { useState } from "react";
+import { useDispatch } from "react-redux";
+import { setFilters } from "../store/slices/filtersSlice";
+
 const DATE_PRESETS = [
   { value: "today", label: "Today" },
   { value: "yesterday", label: "Yesterday" },
@@ -13,104 +15,158 @@ const DATE_PRESETS = [
   { value: "last_month", label: "Last Month" },
   { value: "last_6_months", label: "Last 6 Months" },
   { value: "this_year", label: "This Year" },
-  { value: "custom", label: "Custom Range" }
+  { value: "custom", label: "Custom Range" },
 ];
 
-const FiltersPanel = ({
-  visible,
-  onApply,
-  onClose,
-  initial,
-  selectedCampaigns,
-  setSelectedCampaigns,
-  selectedPublishers,
-  setSelectedPublishers,
-}) => {
-  const [preset, setPreset] = useState(initial?.preset || "today");
-  const [callerId, setCallerId] = useState("");
-  const [dateRange, setDateRange] = useState({ startDate: "", endDate: "" });
+const FiltersPanel = React.memo(
+  ({
+    visible,
+    onApply,
+    onClose,
+    initial,
+    selectedCampaigns,
+    setSelectedCampaigns,
+    selectedPublishers,
+    setSelectedPublishers,
+    selectedTargets,
+    setSelectedTargets,
+    selectedBuyers,
+    setSelectedBuyers,
+  }) => {
+    const dispatch = useDispatch();
+    const [preset, setPreset] = useState(initial?.preset || "today");
+    const [dateRange, setDateRange] = useState({
+      startDate: initial?.startDate || "",
+      endDate: initial?.endDate || "",
+    });
 
-  const handleApply = () => {
-    const payload = {
-      datePreset: preset,
-      campaign: selectedCampaigns.join(","),
-      publisher: selectedPublishers.join(","),
-      callerId: callerId || undefined,
-      startDate: dateRange.startDate || undefined,
-      endDate: dateRange.endDate || undefined,
-    };
-    
-    onApply(payload);
-    toast.success("Filters applied");
-  };
+    const handleApply = useCallback(() => {
+      const payload = {
+        datePreset: preset,
+        campaign: selectedCampaigns,
+        publisher: selectedPublishers,
+        target: selectedTargets,
+        buyer: selectedBuyers,
+        startDate: preset === "custom" ? dateRange.startDate || null : null,
+        endDate: preset === "custom" ? dateRange.endDate || null : null,
+      };
 
-  const handleReset = () => {
-    setSelectedCampaigns([]);
-    setSelectedPublishers([]);
-    setCallerId("");
-    setPreset("today");
-    setDateRange({ startDate: "", endDate: "" });
-    toast.info("Filters reset");
-  };
+      dispatch(setFilters(payload));
+      onApply(payload);
+      toast.success("Filters applied");
+    }, [
+      preset,
+      selectedCampaigns,
+      selectedPublishers,
+      selectedTargets,
+      selectedBuyers,
+      dateRange,
+      dispatch,
+      onApply,
+    ]);
 
-  if (!visible) return null;
+    const handleReset = useCallback(() => {
+      setSelectedCampaigns([]);
+      setSelectedPublishers([]);
+      setSelectedTargets([]);
+      setSelectedBuyers([]);
+      setPreset("today");
+      setDateRange({ startDate: "", endDate: "" });
+      toast.info("Filters reset");
+    }, [
+      setSelectedCampaigns,
+      setSelectedPublishers,
+      setSelectedTargets,
+      setSelectedBuyers,
+    ]);
 
-  return (
-    <div
-      className="filters-panel card position-absolute end-0 top-0 m-4 p-3 shadow"
-      style={{ width: 420, zIndex: 1050 }}
-    >
-      <div className="d-flex mb-3 align-items-center">
-        <h5 className="mb-0">Filters</h5>
-        <button
-          className="btn btn-sm btn-outline-secondary ms-auto"
-          onClick={onClose}
-        >
-          Close
-        </button>
-      </div>
+    const handlePresetChange = useCallback((e) => {
+      setPreset(e.target.value);
+    }, []);
 
-      <div className="mb-3">
-        <label className="form-label">Date Preset</label>
-        <select
-          className="form-select"
-          value={preset}
-          onChange={(e) => setPreset(e.target.value)}
-        >
-          {DATE_PRESETS.map(({ value, label }) => (
-            <option key={value} value={value}>{label}</option>
-          ))}
-        </select>
-      </div>
+    const handleDateChange = useCallback((field, value) => {
+      setDateRange((prev) => ({ ...prev, [field]: value }));
+    }, []);
 
-      {preset === "custom" && (
-        <div className="mb-3">
-          <label className="form-label">Start Date</label>
-          <input
-            className="form-control"
-            type="datetime-local"
-            value={dateRange.startDate}
-            onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
-          />
-          <label className="form-label mt-2">End Date</label>
-          <input
-            className="form-control"
-            type="datetime-local"
-            value={dateRange.endDate}
-            onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
-          />
+    const datePresetsOptions = useMemo(
+      () =>
+        DATE_PRESETS.map(({ value, label }) => (
+          <option key={value} value={value}>
+            {label}
+          </option>
+        )),
+      []
+    );
+
+    if (!visible) return null;
+
+    return (
+      <div
+        className="filters-panel card position-fixed end-0 top-0 m-4 p-3 shadow"
+        style={{
+          width: 420,
+          zIndex: 1050,
+          maxHeight: "90vh",
+          overflowY: "auto",
+        }}
+      >
+        <div className="d-flex mb-3 align-items-center">
+          <h5 className="mb-0">Filters</h5>
+          <button
+            className="btn btn-sm btn-outline-secondary ms-auto"
+            onClick={onClose}
+            aria-label="Close filters"
+          >
+            Close
+          </button>
         </div>
-      )}
-      <div className="d-flex gap-2">
-        <button className="btn btn-primary" onClick={handleApply}>
-          <i className="bi bi-filter" /> Apply
-        </button>
-        <button className="btn btn-outline-secondary" onClick={handleReset}>
-          Reset
-        </button>
-      </div>
-    </div>
-  );
-};
 
-export default React.memo(FiltersPanel);
+        <div className="mb-3">
+          <label className="form-label">Date Preset</label>
+          <select
+            className="form-select"
+            value={preset}
+            onChange={handlePresetChange}
+          >
+            {datePresetsOptions}
+          </select>
+        </div>
+
+        {preset === "custom" && (
+          <div className="mb-3">
+            <label className="form-label">Start Date</label>
+            <input
+              className="form-control"
+              type="datetime-local"
+              value={dateRange.startDate}
+              onChange={(e) => handleDateChange("startDate", e.target.value)}
+            />
+            <label className="form-label mt-2">End Date</label>
+            <input
+              className="form-control"
+              type="datetime-local"
+              value={dateRange.endDate}
+              onChange={(e) => handleDateChange("endDate", e.target.value)}
+            />
+          </div>
+        )}
+
+        <div className="d-flex gap-2">
+          <button className="btn btn-primary flex-fill" onClick={handleApply}>
+            <i className="bi bi-filter" /> Apply
+          </button>
+          <button
+            className="btn btn-outline-secondary flex-fill"
+            onClick={handleReset}
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+    );
+  }
+);
+
+FiltersPanel.displayName = "FiltersPanel";
+
+export default FiltersPanel;

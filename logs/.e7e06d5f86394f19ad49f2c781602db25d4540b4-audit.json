@@ -1,0 +1,40 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 30
+    },
+    "auditLog": "D:\\project\\HLG-Portal\\QC-Bots\\backend\\logs\\.e7e06d5f86394f19ad49f2c781602db25d4540b4-audit.json",
+    "files": [
+        {
+            "date": 1757454710312,
+            "name": "D:\\project\\HLG-Portal\\QC-Bots\\backend\\logs\\application-2025-09-10.log",
+            "hash": "5e3854f267110da0f554093177eba3b10cf58c186b5fc14fe1e0bacc3ca3c8d5"
+        },
+        {
+            "date": 1757531716734,
+            "name": "D:\\project\\HLG-Portal\\QC-Bots\\backend\\logs\\application-2025-09-11.log",
+            "hash": "4e3769ddd9752603aff5ee78f8329a03152d7e289fcc0a88eed73f08064ecd33"
+        },
+        {
+            "date": 1757617216979,
+            "name": "D:\\project\\HLG-Portal\\QC-Bots\\backend\\logs\\application-2025-09-12.log",
+            "hash": "f4757efedd8a8c13cff29ba482a3511599f2a9182728d33ccb063fb6ff7f4306"
+        },
+        {
+            "date": 1757703976463,
+            "name": "D:\\project\\HLG-Portal\\QC-Bots\\backend\\logs\\application-2025-09-13.log",
+            "hash": "48c7f5409231d31c96b13f6f33a318a47e38765d2453c32247a0271426b13603"
+        },
+        {
+            "date": 1757794149324,
+            "name": "D:\\project\\HLG-Portal\\QC-Bots\\backend\\logs\\application-2025-09-14.log",
+            "hash": "c7e2217016d9b18038e7ff50acdfb011c5b65f7d32942149b6a7e63c316b8a92"
+        },
+        {
+            "date": 1757886288040,
+            "name": "D:\\project\\HLG-Portal\\QC-Bots\\backend\\logs\\application-2025-09-15.log",
+            "hash": "da99a55d8973c2a206c9fabd6ca80e857d1f38512db9a0352f039f592b97669f"
+        }
+    ],
+    "hashType": "sha256"
+}

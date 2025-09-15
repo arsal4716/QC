@@ -1,31 +1,23 @@
-import { useState, useCallback } from 'react';
+// hooks/useFilters.js
+import { useDispatch, useSelector } from 'react-redux';
+import { useCallback } from 'react';
+import { setFilters, resetFilters } from '../store/slices/filtersSlice';
 
-export const useFilters = (initialFilters = { datePreset: "today" }) => {
-  const [filters, setFilters] = useState(initialFilters);
-  const [selectedCampaigns, setSelectedCampaigns] = useState([]);
-  const [selectedPublishers, setSelectedPublishers] = useState([]);
-  const [refreshKey, setRefreshKey] = useState(0);
+export const useFilters = (initialFilters = {}) => {
+  const dispatch = useDispatch();
+  const filters = useSelector((state) => state.filters);
 
   const updateFilters = useCallback((newFilters) => {
-    setFilters(prev => ({ ...prev, ...newFilters }));
-    setRefreshKey(prev => prev + 1);
-  }, []);
+    dispatch(setFilters(newFilters));
+  }, [dispatch]);
 
-  const resetFilters = useCallback(() => {
-    setFilters(initialFilters);
-    setSelectedCampaigns([]);
-    setSelectedPublishers([]);
-    setRefreshKey(prev => prev + 1);
-  }, [initialFilters]);
+  const reset = useCallback(() => {
+    dispatch(resetFilters());
+  }, [dispatch]);
 
   return {
     filters,
-    selectedCampaigns,
-    selectedPublishers,
-    refreshKey,
-    setSelectedCampaigns,
-    setSelectedPublishers,
     updateFilters,
-    resetFilters
+    resetFilters: reset,
   };
 };

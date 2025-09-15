@@ -1,14 +1,14 @@
 import React, { useState } from "react";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
-
+import ModalManager from "./../components/Modal/ModalManager";
 const DashboardLayout = ({ children, activePage, setActivePage }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
     <div className="d-flex flex-column vh-100">
-      <Header toggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)} />      
-      <div className="d-flex flex-grow-1" style={{ overflow: 'hidden' }}>
+      <Header toggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)} />
+      <div className="d-flex flex-grow-1" style={{ overflow: "hidden" }}>
         <div className="flex-shrink-0">
           <Sidebar
             collapsed={sidebarCollapsed}
@@ -17,9 +17,13 @@ const DashboardLayout = ({ children, activePage, setActivePage }) => {
           />
         </div>
 
-        <main className="flex-grow-1 p-3" style={{ overflow: 'auto', backgroundColor:'#12172b' }}>
+        <main
+          className="flex-grow-1 p-3"
+          style={{ overflow: "auto", backgroundColor: "#12172b" }}
+        >
           {children}
         </main>
+        <ModalManager />
       </div>
     </div>
   );

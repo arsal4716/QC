@@ -24,7 +24,7 @@ const SidebarItem = ({ item }) => {
     <div>
       <button
         className={`btn w-100 text-start text-white d-flex align-items-center mb-2 ${
-          isActive ? "btn-primary" : "btn-dark"
+          isActive ? "btn-primary" : ""
         }`}
         onClick={handleClick}
       >

@@ -1,134 +1,289 @@
 const CallRecord = require("../models/CallRecord");
-const { buildMatchStage } = require("../utils/buildMatchStage");
+const QueryBuilder = require("../utils/queryBuilder");
+const redis = require("../config/redis");
+const logger = require("../utils/logger");
 
 class RecordsService {
-  async getRecords(
-    filters,
-    {
-      page = 1,
-      limit = 25,
-      sortBy = "callTimestamp",
-      sortDir = "desc",
-      search = "",
-    }
-  ) {
-    page = Math.max(1, Number(page));
-    limit = Math.min(200, Math.max(1, Number(limit)));
+  constructor() {
+    this.defaultProjection = {
+      _id: 1,
+      callTimestamp: 1,
+      campaignName: 1,
+      systemBuyerId: 1,
+      "ringbaRaw.target_name": 1,   
+      publisherName: 1,
+      callerId: 1,
+      recordingUrl: 1,
+      systemCallId: 1,
+      systemPublisherId: 1,
+      "qc.disposition": 1,
+      "qc.sub_disposition": 1,
+      "qc.reason": 1,
+      "qc.summary": 1,
+      "qc.sentiment": 1,
+      disposition: 1,
+      sub_disposition: 1,
+      reason: 1,
+      summary: 1,
+      sentiment: 1,
+      transcript: 1,
+      status: 1,
+      durationSec: 1,
+    };
 
-    const match = buildMatchStage(filters);
-
-    if (search) {
-      const re = new RegExp(search, "i");
-      match.$or = [
-        { callerId: re },
-        { campaignName: re },
-        { publisherName: re },
-        { "qc.reason": re },
-        { "qc.summary": re },
-        { transcript: re },
-      ];
-    }
-
-    const sort = { [sortBy]: sortDir === "asc" ? 1 : -1 };
-    const [total, data] = await Promise.all([
-      CallRecord.countDocuments(match),
-
-      CallRecord.find(match)
-        .sort(sort)
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .select({
-          _id: 1,
-          callTimestamp: 1,
-          campaignName: 1,
-          systemBuyerId: 1,
-          target_name: 1,
-          publisherName: 1,
-          callerId: 1,
-          recordingUrl: 1,
-          systemCallId: 1,
-          systemPublisherId: 1,
-          "qc.disposition": 1,
-          "qc.sub_disposition": 1,
-          "qc.reason": 1,
-          "qc.summary": 1,
-          "qc.sentiment": 1,
-          transcript: 1,
-          ringbaRaw: 1 
-        })
-        .lean(),
-    ]);
-    const transformedData = data.map(record => ({
-      ...record,
-      durationSec: record.ringbaRaw?.duration_seconds || record.durationSec
-    }));
-
-    return {
-      data: transformedData,
-      meta: {
-        page,
-        limit,
-        total,
-        pages: Math.max(1, Math.ceil(total / limit)),
-      },
+    this.detailProjection = {
+      ...this.defaultProjection,
+      transcript: 1,
+      labeledTranscript: 1,
+      ringbaRaw: 1,
+      "qc.confidence_level": 1,
+      "qc.key_moments": 1,
+      "qc.objections_raised": 1,
+      "qc.objections_overcome": 1,
     };
   }
 
-  async getRecordById(id) {
-    const record = await CallRecord.findById(id)
-      .select({
-        _id: 1,
-        callTimestamp: 1,
-        campaignName: 1,
-        publisherName: 1,
-        target_name: 1,
-        systemName: 1,
-        callerId: 1,
-        recordingUrl: 1,
-        systemCallId: 1,
-        systemPublisherId: 1,
-        systemBuyerId: 1,
-        qc: 1,
-        transcript: 1,
-        labeledTranscript: 1,
-        ringbaRaw: 1,
-        durationSec: 1
-      })
-      .lean();
-    if (record) {
-      record.durationSec = record.ringbaRaw?.duration_seconds || record.durationSec;
-    }
+  async getRecords(filters = {}, options = {}) {
+    try {
+      const queryBuilder = QueryBuilder.forModel(CallRecord)
+        .setDateRange(filters)
+        .setCampaignFilter(filters.campaign)
+        .setPublisherFilter(filters.publisher)
+        .setTargetFilter(filters.target)
+        .setBuyerFilter(filters.buyer)
+        .setDispositionFilter(filters.disposition, "qc.disposition")
+        .setStatusFilter(filters.status)
+        .setSearchFilter(filters.search)
+        .setPagination(options.page, options.limit)
+        .setSort(options.sortBy, options.sortDir)
+        .setProjection(this.defaultProjection)
+        .enableCache(60);
 
-    return record;
+      const [data, total] = await Promise.all([
+        queryBuilder.execute(),
+        queryBuilder.count(),
+      ]);
+
+      const transformedData = this._transformRecords(data);
+
+      return {
+        data: transformedData,
+        meta: {
+          page: options.page || 1,
+          limit: options.limit || 25,
+          total,
+          pages: Math.max(1, Math.ceil(total / (options.limit || 25))),
+          hasMore:
+            (options.page || 1) < Math.ceil(total / (options.limit || 25)),
+        },
+      };
+    } catch (error) {
+      logger.error("Failed to fetch records:", error);
+      throw new Error(`Records query failed: ${error.message}`);
+    }
   }
 
-  async exportRecords(q) {
-    const match = buildMatchStage(q);
-    const data = await CallRecord.find(match)
-      .select({
-        callTimestamp: 1,
-        campaignName: 1,
-        publisherName: 1,
-        target_name: 1,
-        callerId: 1,
-        "qc.disposition": 1,
-        "qc.sub_disposition": 1,
-        "qc.reason": 1,
-        "qc.summary": 1,
-        "qc.sentiment": 1,
-        transcript: 1,
-        recordingUrl: 1,
-        systemCallId: 1,
-        systemBuyerId: 1,
-        systemPublisherId: 1,
-        ringbaRaw: 1
-      })
-      .lean();
+  async getRecordById(id) {
+    const cacheKey = `record:${id}`;
 
-    return data.map(record => ({
-      ...record,
-      durationSec: record.ringbaRaw?.duration_seconds || record.durationSec
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+
+      const record = await CallRecord.findById(id)
+        .select(this.detailProjection)
+        .lean()
+        .maxTimeMS(5000);
+
+      if (!record) {
+        throw new Error("Record not found");
+      }
+
+      const transformed = this._transformRecord(record);
+      await redis.setex(cacheKey, 300, JSON.stringify(transformed));
+
+      return transformed;
+    } catch (error) {
+      logger.error(`Failed to fetch record ${id}:`, error);
+      throw new Error(`Record fetch failed: ${error.message}`);
+    }
+  }
+
+  async exportRecords(filters = {}) {
+    try {
+      const queryBuilder = QueryBuilder.forModel(CallRecord)
+        .setDateRange(filters)
+        .setCampaignFilter(filters.campaign)
+        .setTargetFilter(filters.target)
+        .setPublisherFilter(filters.publisher)
+        .setBuyerFilter(filters.buyer)
+        .setDispositionFilter(filters.disposition, "qc.disposition")
+        .setStatusFilter(filters.status)
+        .setSearchFilter(filters.search)
+        .disableCache();
+
+      const data = await queryBuilder.execute();
+      return this._transformRecords(data);
+    } catch (error) {
+      logger.error("Export records failed:", error);
+      throw new Error(`Export failed: ${error.message}`);
+    }
+  }
+
+  async getFieldValues(field, filters = {}) {
+    const validFields = [
+      "campaignName",
+      "publisherName",
+      "systemName",
+      "systemBuyerId",
+      "ringbaRaw.target_name",
+      "qc.disposition",
+      "status",
+      "callStatus",
+    ];
+
+    if (!validFields.includes(field)) {
+      throw new Error(`Invalid field for dynamic filtering: ${field}`);
+    }
+
+    const cacheKey = this._generateCacheKey("dynamic", field, filters);
+
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+
+      const queryBuilder = AdvancedQueryBuilder.forModel(CallRecord)
+        .setDateRange(filters)
+        .setCampaignFilter(filters.campaign)
+        .setTargetFilter(filters.target)
+        .setPublisherFilter(filters.publisher)
+        .setBuyerFilter(filters.buyer)
+        .setDispositionFilter(filters.disposition, "qc.disposition")
+        .setStatusFilter(filters.status);
+
+      const matchStage = queryBuilder._buildFinalQuery();
+
+      const pipeline = [
+        { $match: matchStage },
+        {
+          $group: {
+            _id: `$${field}`,
+            count: { $sum: 1 },
+            totalDuration: { $sum: "$durationSec" },
+          },
+        },
+        { $match: { _id: { $ne: null, $exists: true } } },
+        { $sort: { count: -1 } },
+        { $limit: 1000 },
+        {
+          $project: {
+            _id: 0,
+            value: "$_id",
+            label: "$_id",
+            count: 1,
+            avgDuration: {
+              $round: [{ $divide: ["$totalDuration", "$count"] }, 2],
+            },
+          },
+        },
+      ];
+      if (field.includes(".")) {
+        pipeline.unshift({
+          $match: { [field]: { $exists: true, $ne: null } },
+        });
+      }
+      const results = await CallRecord.aggregate(pipeline, {
+        maxTimeMS: 15000,
+        allowDiskUse: true,
+      });
+      await redis.setex(cacheKey, this.cacheTTL, JSON.stringify(results));
+
+      return results;
+    } catch (error) {
+      logger.error("Dynamic filter query failed", {
+        error: error.message,
+        field,
+        filters,
+      });
+      throw new Error(`Failed to load dynamic filter values: ${error.message}`);
+    }
+  }
+  async getCallTimeline(filters = {}, interval = "hour") {
+    const queryBuilder = QueryBuilder.forModel(CallRecord)
+      .setDateRange(filters)
+      .setCampaignFilter(filters.campaign)
+      .setTargetFilter(filters.target)
+      .setPublisherFilter(filters.publisher)
+      .setBuyerFilter(filters.buyer)
+      .setDispositionFilter(filters.disposition, "qc.disposition")
+      .setStatusFilter(filters.status);
+
+    const groupStage = {
+      _id: {
+        [interval]:
+          interval === "hour"
+            ? { $hour: "$callTimestamp" }
+            : { $dayOfMonth: "$callTimestamp" },
+      },
+      count: { $sum: 1 },
+      totalDuration: { $sum: "$durationSec" },
+    };
+
+    const pipeline = [
+      { $match: queryBuilder._buildFinalQuery() },
+      { $group: groupStage },
+      { $sort: { "_id.hour": 1 } },
+    ];
+
+    const results = await queryBuilder.aggregate(pipeline);
+
+    return results.map((item) => ({
+      time: item._id.hour || item._id.day,
+      count: item.count,
+      avgDuration: Math.round(item.totalDuration / item.count),
     }));
+  }
+  _transformRecords(records) {
+    return records.map((record) => this._transformRecord(record));
+  }
+
+  _transformRecord(record) {
+    const disposition =
+      record.qc?.disposition || record.disposition || "Not Classified";
+    const sub_disposition =
+      record.qc?.sub_disposition || record.sub_disposition || null;
+    const reason = record.qc?.reason || record.reason || "";
+    const summary = record.qc?.summary || record.summary || "";
+    const sentiment = record.qc?.sentiment || record.sentiment || "";
+
+    return {
+      ...record,
+    target_name: record.target_name || record.ringbaRaw?.target_name || null, 
+      durationSec:
+        record.ringbaRaw?.duration_seconds || record.durationSec || 0,
+      callerNumber: record.ringbaRaw?.caller_number || record.callerId,
+      disposition,
+      sub_disposition,
+      reason,
+      summary,
+      sentiment,
+    };
+  }
+
+  async _clearCacheForRecords(ids) {
+    const keys = ids.map((id) => `record:${id}`);
+    if (keys.length > 0) {
+      await redis.del(...keys);
+    }
+    await redis.keys("query:CallRecord:*").then((keys) => {
+      if (keys.length > 0) {
+        return redis.del(...keys);
+      }
+    });
   }
 }
 

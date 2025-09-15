@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getCostStats } from '../api/costApi';
+import { getCostStats } from '../store/api/costApi';
 import { toast } from 'react-toastify';
 
 const CostDashboard = () => {

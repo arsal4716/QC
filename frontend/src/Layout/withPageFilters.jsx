@@ -1,71 +1,87 @@
-import React, { useState } from 'react';
-import { useFilters } from '../hooks/useFilters';
-import TopBar from '../components/TopBar';
-import FiltersPanel from '../components/FiltersPanel';
-import useAutoRefresh from '../hooks/useAutoRefresh';
+// src/Layout/withPageFilters.jsx
+import React, { useCallback, useMemo, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useFilters } from "../hooks/useFilters";
+import { useAutoRefresh } from "../hooks/useAutoRefresh";
+import TopBar from "../components/Layout/TopBar";
+import FiltersPanel from "../components/FiltersPanel";
 
 const withPageFilters = (
   WrappedComponent,
   initialFilters = { datePreset: "today" }
 ) => {
-  return (props) => {
-    const {
-      filters,
-      selectedCampaigns,
-      selectedPublishers,
-      setSelectedCampaigns,
-      setSelectedPublishers,
-      updateFilters,
-      resetFilters
-    } = useFilters(initialFilters);
+  const ComponentWithFilters = (props) => {
+    const dispatch = useDispatch();
+    const { filters, updateFilters, resetFilters } = useFilters(initialFilters);
 
     const [filtersVisible, setFiltersVisible] = useState(false);
     const [autoRefresh, setAutoRefresh] = useState(false);
-    const [refreshKey, setRefreshKey] = useState(0);  
-    useAutoRefresh(autoRefresh, 15000, () =>
-      setRefreshKey((prev) => prev + 1)
+    const [refreshKey, setRefreshKey] = useState(0);
+    
+    // Get selections from Redux store
+    const selectedCampaigns = useSelector(state => state.filters.selectedCampaigns || []);
+    const selectedPublishers = useSelector(state => state.filters.selectedPublishers || []);
+    const selectedTargets = useSelector(state => state.filters.selectedTargets || []);
+    const selectedBuyers = useSelector(state => state.filters.selectedBuyers || []);
+
+    useAutoRefresh(() => {
+      if (autoRefresh) setRefreshKey((prev) => prev + 1);
+    }, [autoRefresh]);
+
+    const handleApplyFilters = useCallback(
+      (payload) => {
+        updateFilters(payload);
+        setFiltersVisible(false);
+      },
+      [updateFilters]
     );
 
-    const handleApplyFilters = (payload) => {
-      updateFilters(payload);
-      setFiltersVisible(false);
-    };
+    const toggleFilters = useCallback(() => {
+      setFiltersVisible((v) => !v);
+    }, []);
+
+    const memoizedProps = useMemo(
+      () => ({
+        ...props,
+        filters,
+        refreshKey,
+        onResetFilters: resetFilters,
+      }),
+      [props, filters, refreshKey, resetFilters]
+    );
 
     return (
       <div className="container-fluid">
         <TopBar
-          onToggleFilters={() => setFiltersVisible((v) => !v)}
+          onToggleFilters={toggleFilters}
           autoRefresh={autoRefresh}
           setAutoRefresh={setAutoRefresh}
           rangeLabel={filters.datePreset}
-          onApplyPublishers={setSelectedPublishers}
-          onApplyCampaigns={setSelectedCampaigns}
           selectedCampaigns={selectedCampaigns}
           selectedPublishers={selectedPublishers}
+          selectedTargets={selectedTargets}
+          selectedBuyers={selectedBuyers}
         />
 
-        <WrappedComponent
-          {...props}
-          filters={filters}
-          refreshKey={refreshKey}   
-          selectedCampaigns={selectedCampaigns}
-          selectedPublishers={selectedPublishers}
-          onResetFilters={resetFilters}
-        />
+        {/* Wrapped page content */}
+        <WrappedComponent {...memoizedProps} />
 
+        {/* Filters panel */}
         <FiltersPanel
           visible={filtersVisible}
           onApply={handleApplyFilters}
-          onClose={() => setFiltersVisible(false)}
+          onClose={toggleFilters}
           initial={filters}
-          selectedCampaigns={selectedCampaigns}
-          setSelectedCampaigns={setSelectedCampaigns}
-          selectedPublishers={selectedPublishers}
-          setSelectedPublishers={setSelectedPublishers}
         />
       </div>
     );
   };
+
+  ComponentWithFilters.displayName = `withPageFilters(${
+    WrappedComponent.displayName || WrappedComponent.name || "Component"
+  })`;
+
+  return ComponentWithFilters;
 };
 
 export default withPageFilters;

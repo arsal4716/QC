@@ -6,17 +6,16 @@ const { transcribe } = require("./deepgramService");
 const { labelSpeakers, analyzeDisposition } = require("./openaiService");
 const Campaign = require("../models/Campaign");
 const Publisher = require("../models/Publisher");
+const Buyer = require("../models/Buyer");
+const Target = require("../models/Target");
 const { ObjectId } = require('mongoose').Types;
 
 class WebhookService {
   constructor() {
-    // Redis connection for BullMQ
     this.redisConnection = new Redis(process.env.REDIS_URL || {
       maxRetriesPerRequest: null,
       enableReadyCheck: false
     });
-
-    // Create processing queue
     this.processingQueue = new Queue('call-processing', {
       connection: this.redisConnection,
       defaultJobOptions: {
@@ -26,16 +25,14 @@ class WebhookService {
           delay: 5000
         },
         removeOnComplete: {
-          age: 24 * 3600, // keep completed jobs for 24 hours
-          count: 1000 // keep up to 1000 completed jobs
+          age: 24 * 3600,
+          count: 1000 
         },
         removeOnFail: {
-          age: 7 * 24 * 3600, // keep failed jobs for 7 days
+          age: 7 * 24 * 3600, 
         }
       }
     });
-
-    // Create worker to process jobs
     this.worker = new Worker('call-processing', this.processJob.bind(this), {
       connection: this.redisConnection,
       concurrency: 5,
@@ -74,7 +71,6 @@ async addToProcessingQueue(payload) {
       callStatus: "queued"
     });
 
-    // Use MongoDB ObjectId as job ID
     const jobId = callRecord._id.toString();
     
     const job = await this.processingQueue.add(
@@ -85,8 +81,6 @@ async addToProcessingQueue(payload) {
         priority: 1 
       }
     );
-
-    console.log(`Job added to queue: ${job.id}`);
     return job;
   } catch (error) {
     console.error('Error adding to processing queue:', error);
@@ -99,9 +93,7 @@ async addToProcessingQueue(payload) {
     
     try {
       const callData = this.transformPayload(payload);
-      
-      // Update call status to processing
-      await CallRecord.findByIdAndUpdate(callRecordId, {
+            await CallRecord.findByIdAndUpdate(callRecordId, {
         callStatus: "processing",
         processingStartTime: new Date()
       });
@@ -134,7 +126,6 @@ async addToProcessingQueue(payload) {
       return { success: true };
 
     } catch (error) {
-      // Update call record with error
       const errorStatus = this.getErrorStatus(error);
       await CallRecord.findByIdAndUpdate(callRecordId, {
         callStatus: errorStatus,
@@ -142,7 +133,7 @@ async addToProcessingQueue(payload) {
         processingEndTime: new Date()
       });
       
-      throw error; // Let BullMQ handle retries
+      throw error; 
     }
   }
 
@@ -171,36 +162,69 @@ async addToProcessingQueue(payload) {
     };
   }
 
-  async ensureCampaignPublisher(callData) {
-    if (callData.campaignName) {
+async ensureCampaignPublisher(callData) {
+  const cache = this.redisConnection;
+
+  // Campaign
+  if (callData.campaignName) {
+    const cacheKey = `campaign:${callData.campaignName}`;
+    const seen = await cache.sismember("seenCampaigns", cacheKey);
+    if (!seen) {
       const campaignSlug = this.generateSlug(callData.campaignName);
       await Campaign.updateOne(
         { name: callData.campaignName },
-        { 
-          $setOnInsert: { 
-            name: callData.campaignName,
-            slug: campaignSlug
-          } 
-        },
+        { $setOnInsert: { name: callData.campaignName, slug: campaignSlug } },
         { upsert: true }
       );
-    }
-
-    if (callData.publisherName) {
-      const publisherSlug = this.generateSlug(callData.publisherName);
-      await Publisher.updateOne(
-        { name: callData.publisherName },
-        { 
-          $setOnInsert: { 
-            name: callData.publisherName,
-            slug: publisherSlug
-          } 
-        },
-        { upsert: true }
-      );
+      await cache.sadd("seenCampaigns", cacheKey);
     }
   }
 
+  // Publisher
+  if (callData.publisherName) {
+    const cacheKey = `publisher:${callData.publisherName}`;
+    const seen = await cache.sismember("seenPublishers", cacheKey);
+    if (!seen) {
+      const publisherSlug = this.generateSlug(callData.publisherName);
+      await Publisher.updateOne(
+        { name: callData.publisherName },
+        { $setOnInsert: { name: callData.publisherName, slug: publisherSlug } },
+        { upsert: true }
+      );
+      await cache.sadd("seenPublishers", cacheKey);
+    } 
+  }
+
+  // Buyer
+  if (callData.systemBuyerId) {
+    const cacheKey = `buyer:${callData.systemBuyerId}`;
+    const seen = await cache.sismember("seenBuyers", cacheKey);
+    if (!seen) {
+      const buyerSlug = this.generateSlug(callData.systemBuyerId);
+      await Buyer.updateOne(
+        { name: callData.systemBuyerId },
+        { $setOnInsert: { name: callData.systemBuyerId, slug: buyerSlug } },
+        { upsert: true }
+      );
+      await cache.sadd("seenBuyers", cacheKey);
+    }
+  }
+
+  // Target
+  if (callData.ringbaRaw?.target_name) {
+    const cacheKey = `target:${callData.ringbaRaw.target_name}`;
+    const seen = await cache.sismember("seenTargets", cacheKey);
+    if (!seen) {
+      const targetSlug = this.generateSlug(callData.ringbaRaw.target_name);
+      await Target.updateOne(
+        { name: callData.ringbaRaw.target_name },
+        { $setOnInsert: { name: callData.ringbaRaw.target_name, slug: targetSlug } },
+        { upsert: true }
+      );
+      await cache.sadd("seenTargets", cacheKey);
+    }
+  }
+}
   generateSlug(text) {
     return slugify(text, {
       lower: true,     
@@ -208,8 +232,6 @@ async addToProcessingQueue(payload) {
       remove: /[*+~.()'"!:@]/g 
     });
   }
-
-  // Utility methods for monitoring
   async getQueueStats() {
     const [waiting, active, completed, failed, delayed] = await Promise.all([
       this.processingQueue.getWaitingCount(),
