@@ -3,11 +3,13 @@ const User = require('../models/User');
 exports.getAllUsers = async (req, res) => {
   try {
     const users = await User.find().select('-password');
-    res.json({ success: true, users });
+    const totalCount = await User.countDocuments();
+    res.json({ success: true, users, totalCount });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch users' });
   }
 };
+
 
 exports.getUserById = async (req, res) => {
   try {

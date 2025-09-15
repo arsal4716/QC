@@ -80,7 +80,6 @@ const Users = () => {
 
   const handleSearch = (e) => {
     setSearchTerm(e.target.value);
-    // Reset to first page when searching
     setPagination(prev => ({ ...prev, page: 1 }));
   };
 
@@ -205,7 +204,7 @@ const Users = () => {
                           </span>
                         </td>
                         <td>
-                          <span className={`badge ${user.active ? 'bg-success' : 'bg-warning'}`}>
+                          <span className={`badge ${user.isActive ? 'bg-success' : 'bg-warning'}`}>
                             {user.active ? 'Active' : 'Inactive'}
                           </span>
                         </td>
