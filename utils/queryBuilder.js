@@ -16,75 +16,29 @@ class QueryBuilder {
     return new QueryBuilder(model);
   }
 
-_buildDateRange(preset, startDate, endDate, timezone = "America/New_York") {
-  const now = DateTime.now().setZone(timezone);
-  let start, end;
+  setDateRange({
+    preset,
+    startDate,
+    endDate,
+    timezone = "America/New_York",
+  } = {}) {
+    if (!preset && !startDate && !endDate) {
+      preset = "today";
+    }
 
-  const ranges = {
-    today: () => ({
-      start: now.startOf("day"),
-      end: now.endOf("day"),
-    }),
-    yesterday: () => ({
-      start: now.minus({ days: 1 }).startOf("day"),
-      end: now.minus({ days: 1 }).endOf("day"),
-    }),
-    last_2_days: () => ({
-      start: now.minus({ days: 2 }).startOf("day"),
-      end: now.endOf("day"),
-    }),
-    last_7_days: () => ({
-      start: now.minus({ days: 7 }).startOf("day"),
-      end: now.endOf("day"),
-    }),
-    this_week: () => ({
-      start: now.startOf("week"),
-      end: now.endOf("week"),
-    }),
-    last_week: () => ({
-      start: now.minus({ weeks: 1 }).startOf("week"),
-      end: now.minus({ weeks: 1 }).endOf("week"),
-    }),
-    last_30_days: () => ({
-      start: now.minus({ days: 30 }).startOf("day"),
-      end: now.endOf("day"),
-    }),
-    this_month: () => ({
-      start: now.startOf("month"),
-      end: now.endOf("month"),
-    }),
-    last_month: () => ({
-      start: now.minus({ months: 1 }).startOf("month"),
-      end: now.minus({ months: 1 }).endOf("month"),
-    }),
-    last_6_months: () => ({
-      start: now.minus({ months: 6 }).startOf("day"),
-      end: now.endOf("day"),
-    }),
-    this_year: () => ({
-      start: now.startOf("year"),
-      end: now.endOf("year"),
-    }),
-  };
+    const { start, end } = this._buildDateRange(
+      preset,
+      startDate,
+      endDate,
+      timezone
+    );
+    if (start)
+      this.query.callTimestamp = { ...this.query.callTimestamp, $gte: start };
+    if (end)
+      this.query.callTimestamp = { ...this.query.callTimestamp, $lte: end };
 
-  if (preset && ranges[preset]) {
-    ({ start, end } = ranges[preset]());
-  } else {
-    // Custom range
-    start = startDate
-      ? DateTime.fromISO(startDate, { zone: timezone }).startOf("second")
-      : null;
-    end = endDate
-      ? DateTime.fromISO(endDate, { zone: timezone }).endOf("second")
-      : null;
+    return this;
   }
-
-  // Convert to UTC for MongoDB query
-  return {
-    start: start ? start.toUTC().toJSDate() : null,
-    end: end ? end.toUTC().toJSDate() : null,
-  };
-}
 
   setCampaignFilter(campaigns) {
     if (!campaigns) return this;
@@ -278,6 +232,75 @@ _buildDateRange(preset, startDate, endDate, timezone = "America/New_York") {
       duration: "durationSec",
     };
     return map[field] || field;
+  }
+
+  _buildDateRange(preset, startDate, endDate, timezone = "America/New_York") {
+    const now = DateTime.now().setZone(timezone);
+    let start, end;
+
+    const ranges = {
+      today: () => ({
+        start: now.startOf("day"),
+        end: now.endOf("day"),
+      }),
+      yesterday: () => ({
+        start: now.minus({ days: 1 }).startOf("day"),
+        end: now.minus({ days: 1 }).endOf("day"),
+      }),
+      last_2_days: () => ({
+        start: now.minus({ days: 2 }).startOf("day"),
+        end: now.endOf("day"),
+      }),
+      last_7_days: () => ({
+        start: now.minus({ days: 7 }).startOf("day"),
+        end: now.endOf("day"),
+      }),
+      this_week: () => ({
+        start: now.startOf("week"),
+        end: now.endOf("week"),
+      }),
+      last_week: () => ({
+        start: now.minus({ weeks: 1 }).startOf("week"),
+        end: now.minus({ weeks: 1 }).endOf("week"),
+      }),
+      last_30_days: () => ({
+        start: now.minus({ days: 30 }).startOf("day"),
+        end: now.endOf("day"),
+      }),
+      this_month: () => ({
+        start: now.startOf("month"),
+        end: now.endOf("month"),
+      }),
+      last_month: () => ({
+        start: now.minus({ months: 1 }).startOf("month"),
+        end: now.minus({ months: 1 }).endOf("month"),
+      }),
+      last_6_months: () => ({
+        start: now.minus({ months: 6 }).startOf("day"),
+        end: now.endOf("day"),
+      }),
+      this_year: () => ({
+        start: now.startOf("year"),
+        end: now.endOf("year"),
+      }),
+    };
+
+    if (preset && ranges[preset]) {
+      ({ start, end } = ranges[preset]());
+    } else {
+      // Custom range
+      start = startDate
+        ? DateTime.fromISO(startDate, { zone: timezone }).startOf("second")
+        : null;
+      end = endDate
+        ? DateTime.fromISO(endDate, { zone: timezone }).endOf("second")
+        : null;
+    }
+
+    return {
+      start: start ? start.toUTC().toJSDate() : null,
+      end: end ? end.toUTC().toJSDate() : null,
+    };
   }
 
   _buildFinalQuery() {
