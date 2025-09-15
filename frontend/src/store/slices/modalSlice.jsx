@@ -16,8 +16,10 @@ const initialState = {
     filters: { open: false },
     target: makeModalState(),
     buyer: makeModalState(),
-    recordDetail: null,
-  },
+ recordDetail: {          
+      open: false,
+      data: null
+    },  },
 };
 
 const modalSlice = createSlice({
@@ -75,7 +77,10 @@ const modalSlice = createSlice({
         : [];
     },
     setRecordDetail: (state, action) => {
-      state.modals.recordDetail = action.payload;
+      state.modals.recordDetail = {
+        open: true,
+        data: action.payload,
+      };
     },
     clearRecordDetail: (state) => {
       state.modals.recordDetail = null;

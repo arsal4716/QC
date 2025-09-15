@@ -8,7 +8,6 @@ import DetailModal from "../Table/DetailModal";
 
 const ModalManager = () => {
   const modals = useSelector((state) => state.modal.modals);
-  const uiModals = useSelector((state) => state.ui.modals);
 
   return (
     <>
@@ -16,7 +15,7 @@ const ModalManager = () => {
       {modals.publisher?.open && <PublisherModal />}
       {modals.buyer?.open && <BuyerModal />}
       {modals.target?.open && <TargetModal />}
-      {uiModals.recordDetail && <DetailModal />}
+      {modals.recordDetail?.open && <DetailModal />}
     </>
   );
 };

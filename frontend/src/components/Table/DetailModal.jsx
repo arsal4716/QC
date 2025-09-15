@@ -3,15 +3,16 @@ import { useSelector, useDispatch } from "react-redux";
 import StatusBadge from "./StatusBadge";
 import { renderField } from "../../utils/tableUtils";
 import { createPortal } from "react-dom";
-import { closeModal } from '../../store/slices/modalSlice';
+import { clearRecordDetail } from "../../store/slices/modalSlice";
 
 const DetailModal = () => {
   const dispatch = useDispatch();
-const record = useSelector((state) => state.ui.modals.recordDetail);
-if (!record) return null;
+  const recordDetail = useSelector((state) => state.modal.modals.recordDetail);
+  if (!recordDetail?.open || !recordDetail.data) return null;
 
+  const record = recordDetail.data;
   const handleClose = () => {
-    dispatch(closeModal());
+    dispatch(clearRecordDetail());
   };
 
   const handleBackdropClick = (event) => {
@@ -24,24 +25,21 @@ if (!record) return null;
 
   return createPortal(
     <>
-      <div 
+      <div
         className="modal-backdrop show"
         style={{ zIndex: 1040 }}
         onClick={handleBackdropClick}
       />
-      
+
       {/* Modal */}
-      <div 
-        className="modal show d-block" 
+      <div
+        className="modal show d-block"
         tabIndex="-1"
         style={{ zIndex: 1050 }}
         onClick={handleBackdropClick}
       >
         <div className="modal-dialog modal-xl">
-          <div 
-            className="modal-content"
-            onClick={(e) => e.stopPropagation()} // Prevent click propagation to backdrop
-          >
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h5 className="modal-title">
                 Call Record Details
@@ -51,9 +49,9 @@ if (!record) return null;
                   </small>
                 )}
               </h5>
-              <button 
-                type="button" 
-                className="btn-close" 
+              <button
+                type="button"
+                className="btn-close"
                 onClick={handleClose}
                 aria-label="Close"
               />
@@ -89,7 +87,10 @@ if (!record) return null;
                   <div className="detail-section">
                     <h6>System Information</h6>
                     {renderField("System Call ID", record.systemCallId)}
-                    {renderField("System Publisher ID", record.systemPublisherId)}
+                    {renderField(
+                      "System Publisher ID",
+                      record.systemPublisherId
+                    )}
                     {renderField("System Buyer ID", record.systemBuyerId)}
                   </div>
 

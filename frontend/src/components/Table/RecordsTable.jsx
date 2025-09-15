@@ -53,12 +53,12 @@ const RecordsTable = memo(({ refreshKey }) => {
     [dispatch]
   );
 
-  const handleRowClick = useCallback(
-    (record) => {
-      if (record?.id) dispatch(setRecordDetail(record.id));
-    },
-    [dispatch]
-  );
+const handleRowClick = useCallback(
+  (record) => {
+    if (record) dispatch(setRecordDetail(record));
+  },
+  [dispatch]
+);
 
   const handleSort = useCallback(
     (sortBy, sortDir) => {

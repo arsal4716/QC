@@ -12,13 +12,10 @@ const TableRow = memo(({ record, columns, onRowClick }) => {
   
   console.log("safe records", safeRecord);
 
-  const handleViewDetails = useCallback((e) => {
-    e.stopPropagation();
-    if (safeRecord?.id) {
-      // FIX: Pass the ENTIRE record object, not just the ID
-      dispatch(setRecordDetail(safeRecord));
-    }
-  }, [dispatch, safeRecord]);
+const handleViewDetails = useCallback((e) => {
+  e.stopPropagation();
+  dispatch(setRecordDetail(safeRecord));
+}, [dispatch, safeRecord]);
 
   const handleCopy = useCallback((e) => {
     e.stopPropagation();

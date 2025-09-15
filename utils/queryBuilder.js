@@ -228,7 +228,7 @@ _buildDateRange(datePreset, startDate, endDate, timezone = "America/New_York") {
       end: now.endOf("day"),
     }),
     last_7_days: () => ({
-      start: now.minus({ days: 7 }).startOf("day"), // FIXED: 7 days, not 6
+      start: now.minus({ days: 7 }).startOf("day"), 
       end: now.endOf("day"),
     }),
     this_week: () => ({
