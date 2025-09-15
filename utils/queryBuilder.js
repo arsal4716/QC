@@ -252,7 +252,7 @@ class QueryBuilder {
         end: now.endOf("day"),
       }),
       last_7_days: () => ({
-        start: now.minus({ days: 7 }).startOf("day"),
+        start: now.minus({ days: 6 }).startOf("day"),
         end: now.endOf("day"),
       }),
       this_week: () => ({
@@ -288,7 +288,6 @@ class QueryBuilder {
     if (preset && ranges[preset]) {
       ({ start, end } = ranges[preset]());
     } else {
-      // Custom range comes from frontend in ET
       start = startDate
         ? DateTime.fromISO(startDate, { zone: timezone }).startOf("second")
         : null;
@@ -298,7 +297,6 @@ class QueryBuilder {
     }
 
     return {
-      // Convert to UTC for DB storage/query
       start: start ? start.toUTC().toJSDate() : null,
       end: end ? end.toUTC().toJSDate() : null,
     };
@@ -320,7 +318,7 @@ class QueryBuilder {
       endDate,
       timezone
     );
-
+    console.log("DATE RANGE:", start, end);
     if (start)
       this.query.callTimestamp = { ...this.query.callTimestamp, $gte: start };
     if (end)

@@ -46,7 +46,6 @@ const FiltersPanel = React.memo(
       let endET = null;
 
       if (preset === "custom" && dateRange.startDate && dateRange.endDate) {
-        // Convert datetime-local (browser) to ET ISO string
         startET = DateTime.fromISO(dateRange.startDate, {
           zone: "America/New_York",
         }).toISO();
@@ -64,7 +63,7 @@ const FiltersPanel = React.memo(
         startDate: startET,
         endDate: endET,
       };
-
+        console.log("timestam payload",payload)
       dispatch(setFilters(payload));
       onApply(payload);
       toast.success("Filters applied");
