@@ -234,7 +234,7 @@ class QueryBuilder {
     return map[field] || field;
   }
 
-  _buildDateRange(preset, startDate, endDate, timezone) {
+  _buildDateRange(preset, startDate, endDate, timezone = "America/New_York") {
     const now = DateTime.now().setZone(timezone);
     let start, end;
     const ranges = {
@@ -270,13 +270,16 @@ class QueryBuilder {
       }),
       this_year: () => ({ start: now.startOf("year"), end: now.endOf("year") }),
     };
-    if (preset && ranges[preset]) ({ start, end } = ranges[preset]());
-    else {
+
+    if (preset && ranges[preset]) {
+      ({ start, end } = ranges[preset]());
+    } else {
       start = startDate
         ? DateTime.fromISO(startDate, { zone: timezone })
         : null;
       end = endDate ? DateTime.fromISO(endDate, { zone: timezone }) : null;
     }
+
     return {
       start: start ? start.toUTC().toJSDate() : null,
       end: end ? end.toUTC().toJSDate() : null,
