@@ -1,7 +1,5 @@
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
-
-// 🔹 simple reusable slugify helper
 const slugify = (str) =>
   str
     ? str
@@ -57,10 +55,10 @@ const CallRecordSchema = new Schema(
     callTimestamp: { type: Date, index: true },
 
     campaignName: { type: String, trim: true, index: true },
-    campaignSlug: { type: String, trim: true, index: true }, // 🔹 slug
+    campaignSlug: { type: String, trim: true, index: true },
 
     publisherName: { type: String, trim: true, index: true },
-    publisherSlug: { type: String, trim: true, index: true }, // 🔹 slug
+    publisherSlug: { type: String, trim: true, index: true }, 
 
     callerId: { type: String, trim: true, index: true },
     inboundPhoneNumber: { type: String, trim: true },

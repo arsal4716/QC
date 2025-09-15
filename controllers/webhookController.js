@@ -17,7 +17,6 @@ exports.receiveWebhook = async (req, res) => {
       });
     }
     webhookService.addToProcessingQueue(payload).catch(err => {
-      console.error('Error queuing webhook:', err);
     });
 
     return success(res, { 
@@ -26,7 +25,6 @@ exports.receiveWebhook = async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Webhook processing error:', err);
     return error(res, { 
       status: 500, 
       message: "Failed to process webhook" 

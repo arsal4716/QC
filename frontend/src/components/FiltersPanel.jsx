@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo } from "react";
 import { toast } from "react-toastify";
 import { useDispatch } from "react-redux";
 import { setFilters } from "../store/slices/filtersSlice";
+import { DateTime } from "luxon";
 
 const DATE_PRESETS = [
   { value: "today", label: "Today" },
@@ -41,14 +42,27 @@ const FiltersPanel = React.memo(
     });
 
     const handleApply = useCallback(() => {
+      let startET = null;
+      let endET = null;
+
+      if (preset === "custom" && dateRange.startDate && dateRange.endDate) {
+        // Convert datetime-local (browser) to ET ISO string
+        startET = DateTime.fromISO(dateRange.startDate, {
+          zone: "America/New_York",
+        }).toISO();
+        endET = DateTime.fromISO(dateRange.endDate, {
+          zone: "America/New_York",
+        }).toISO();
+      }
+
       const payload = {
         datePreset: preset,
         campaign: selectedCampaigns,
         publisher: selectedPublishers,
         target: selectedTargets,
         buyer: selectedBuyers,
-        startDate: preset === "custom" ? dateRange.startDate || null : null,
-        endDate: preset === "custom" ? dateRange.endDate || null : null,
+        startDate: startET,
+        endDate: endET,
       };
 
       dispatch(setFilters(payload));

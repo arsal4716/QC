@@ -35,7 +35,6 @@ exports.createUser = async (req, res) => {
     
     res.status(201).json({ success: true, user: { ...user.toObject(), password: undefined } });
   } catch (error) {
-    console.error('Error creating user:', error);
     res.status(500).json({ success: false, message: 'Failed to create user' });
   }
 };
@@ -55,7 +54,6 @@ exports.updateUser = async (req, res) => {
 
     res.json({ success: true, user });
   } catch (error) {
-    console.error('Error updating user:', error);
     res.status(500).json({ success: false, message: 'Failed to update user' });
   }
 };
@@ -68,7 +66,6 @@ exports.deleteUser = async (req, res) => {
     }
     res.json({ success: true, message: 'User deleted successfully' });
   } catch (error) {
-    console.error('Error deleting user:', error);
     res.status(500).json({ success: false, message: 'Failed to delete user' });
   }
 };

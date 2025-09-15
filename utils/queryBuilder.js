@@ -288,7 +288,7 @@ class QueryBuilder {
     if (preset && ranges[preset]) {
       ({ start, end } = ranges[preset]());
     } else {
-      // Custom range
+      // Custom range comes from frontend in ET
       start = startDate
         ? DateTime.fromISO(startDate, { zone: timezone }).startOf("second")
         : null;
@@ -298,9 +298,35 @@ class QueryBuilder {
     }
 
     return {
+      // Convert to UTC for DB storage/query
       start: start ? start.toUTC().toJSDate() : null,
       end: end ? end.toUTC().toJSDate() : null,
     };
+  }
+
+  setDateRange({
+    preset,
+    startDate,
+    endDate,
+    timezone = "America/New_York",
+  } = {}) {
+    if (!preset && !startDate && !endDate) {
+      preset = "today";
+    }
+
+    const { start, end } = this._buildDateRange(
+      preset,
+      startDate,
+      endDate,
+      timezone
+    );
+
+    if (start)
+      this.query.callTimestamp = { ...this.query.callTimestamp, $gte: start };
+    if (end)
+      this.query.callTimestamp = { ...this.query.callTimestamp, $lte: end };
+
+    return this;
   }
 
   _buildFinalQuery() {
