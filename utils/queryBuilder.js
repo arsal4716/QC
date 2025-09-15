@@ -16,30 +16,6 @@ class QueryBuilder {
     return new QueryBuilder(model);
   }
 
-  setDateRange({
-    preset,
-    startDate,
-    endDate,
-    timezone = "America/New_York",
-  } = {}) {
-    if (!preset && !startDate && !endDate) {
-      preset = "today";
-    }
-
-    const { start, end } = this._buildDateRange(
-      preset,
-      startDate,
-      endDate,
-      timezone
-    );
-    if (start)
-      this.query.callTimestamp = { ...this.query.callTimestamp, $gte: start };
-    if (end)
-      this.query.callTimestamp = { ...this.query.callTimestamp, $lte: end };
-
-    return this;
-  }
-
   setCampaignFilter(campaigns) {
     if (!campaigns) return this;
     const list = this._normalizeArray(campaigns);
@@ -234,98 +210,97 @@ class QueryBuilder {
     return map[field] || field;
   }
 
-  _buildDateRange(preset, startDate, endDate, timezone = "America/New_York") {
-    const now = DateTime.now().setZone(timezone);
-    let start, end;
+_buildDateRange(datePreset, startDate, endDate, timezone = "America/New_York") {
+  const now = DateTime.now().setZone(timezone);
+  let start, end;
 
-    const ranges = {
-      today: () => ({
-        start: now.startOf("day"),
-        end: now.endOf("day"),
-      }),
-      yesterday: () => ({
-        start: now.minus({ days: 1 }).startOf("day"),
-        end: now.minus({ days: 1 }).endOf("day"),
-      }),
-      last_2_days: () => ({
-        start: now.minus({ days: 2 }).startOf("day"),
-        end: now.endOf("day"),
-      }),
-      last_7_days: () => ({
-        start: now.minus({ days: 6 }).startOf("day"),
-        end: now.endOf("day"),
-      }),
-      this_week: () => ({
-        start: now.startOf("week"),
-        end: now.endOf("week"),
-      }),
-      last_week: () => ({
-        start: now.minus({ weeks: 1 }).startOf("week"),
-        end: now.minus({ weeks: 1 }).endOf("week"),
-      }),
-      last_30_days: () => ({
-        start: now.minus({ days: 30 }).startOf("day"),
-        end: now.endOf("day"),
-      }),
-      this_month: () => ({
-        start: now.startOf("month"),
-        end: now.endOf("month"),
-      }),
-      last_month: () => ({
-        start: now.minus({ months: 1 }).startOf("month"),
-        end: now.minus({ months: 1 }).endOf("month"),
-      }),
-      last_6_months: () => ({
-        start: now.minus({ months: 6 }).startOf("day"),
-        end: now.endOf("day"),
-      }),
-      this_year: () => ({
-        start: now.startOf("year"),
-        end: now.endOf("year"),
-      }),
-    };
+  const ranges = {
+    today: () => ({
+      start: now.startOf("day"),
+      end: now.endOf("day"),
+    }),
+    yesterday: () => ({
+      start: now.minus({ days: 1 }).startOf("day"),
+      end: now.minus({ days: 1 }).endOf("day"),
+    }),
+    last_2_days: () => ({
+      start: now.minus({ days: 2 }).startOf("day"),
+      end: now.endOf("day"),
+    }),
+    last_7_days: () => ({
+      start: now.minus({ days: 7 }).startOf("day"), // FIXED: 7 days, not 6
+      end: now.endOf("day"),
+    }),
+    this_week: () => ({
+      start: now.startOf("week"),
+      end: now.endOf("week"),
+    }),
+    last_week: () => ({
+      start: now.minus({ weeks: 1 }).startOf("week"),
+      end: now.minus({ weeks: 1 }).endOf("week"),
+    }),
+    last_30_days: () => ({
+      start: now.minus({ days: 30 }).startOf("day"),
+      end: now.endOf("day"),
+    }),
+    this_month: () => ({
+      start: now.startOf("month"),
+      end: now.endOf("month"),
+    }),
+    last_month: () => ({
+      start: now.minus({ months: 1 }).startOf("month"),
+      end: now.minus({ months: 1 }).endOf("month"),
+    }),
+    last_6_months: () => ({
+      start: now.minus({ months: 6 }).startOf("day"),
+      end: now.endOf("day"),
+    }),
+    this_year: () => ({
+      start: now.startOf("year"),
+      end: now.endOf("year"),
+    }),
+  };
 
-    if (preset && ranges[preset]) {
-      ({ start, end } = ranges[preset]());
-    } else {
-      start = startDate
-        ? DateTime.fromISO(startDate, { zone: timezone }).startOf("second")
-        : null;
-      end = endDate
-        ? DateTime.fromISO(endDate, { zone: timezone }).endOf("second")
-        : null;
-    }
-
-    return {
-      start: start ? start.toUTC().toJSDate() : null,
-      end: end ? end.toUTC().toJSDate() : null,
-    };
+  if (datePreset && ranges[datePreset]) {
+    ({ start, end } = ranges[datePreset]());
+  } else if (datePreset === "custom" || (!datePreset && (startDate || endDate))) {
+    // Handle custom dates with proper timezone
+    start = startDate
+      ? DateTime.fromISO(startDate, { zone: timezone }).startOf("day")
+      : null;
+    end = endDate
+      ? DateTime.fromISO(endDate, { zone: timezone }).endOf("day")
+      : null;
+  } else {
+    // Default to today if no datePreset or custom dates
+    ({ start, end } = ranges.today());
   }
 
-  setDateRange({
-    preset,
+  return {
+    start: start ? start.toUTC().toJSDate() : null,
+    end: end ? end.toUTC().toJSDate() : null,
+  };
+}
+
+setDateRange({
+  datePreset,
+  startDate,
+  endDate,
+  timezone = "America/New_York",
+} = {}) {
+  const { start, end } = this._buildDateRange(
+    datePreset,
     startDate,
     endDate,
-    timezone = "America/New_York",
-  } = {}) {
-    if (!preset && !startDate && !endDate) {
-      preset = "today";
-    }
+    timezone
+  );
+  this.query.callTimestamp = {};
+  
+  if (start) this.query.callTimestamp.$gte = start;
+  if (end) this.query.callTimestamp.$lte = end;
 
-    const { start, end } = this._buildDateRange(
-      preset,
-      startDate,
-      endDate,
-      timezone
-    );
-    console.log("DATE RANGE:", start, end);
-    if (start)
-      this.query.callTimestamp = { ...this.query.callTimestamp, $gte: start };
-    if (end)
-      this.query.callTimestamp = { ...this.query.callTimestamp, $lte: end };
-
-    return this;
-  }
+  return this;
+}
 
   _buildFinalQuery() {
     const q = { ...this.query };
