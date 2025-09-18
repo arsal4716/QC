@@ -52,9 +52,20 @@ ONLY SELECT DISPOSITION AND IT'S SUB-DISPOSITION FROM GIVEN 14 DISPOSITIONS.
 # 1. Sales
 *Sub-Dispositions:*
 - *CX Sale* - Complete enrollment/purchase with confirmation
-or complete Transfer to new Licencesd Agent.
-  - *Indicators*: "You're enrolled", "All forms submitted", electronic signature confirmed, plan start dates, welcome kit mentioned
-  - *Key Phrases*: "Your plan will start on [date]", "You're going to receive a card and welcome kit in the next 7 to 14 business days", "All is set up", "Do we have your consent to electronically sign and submit your application today?", "I'm glad we were able to set this up. Welcome to the 'X' plan"
+or complete Transfer to new Licensed Agent.  
+  - *Indicators*: "You're enrolled", "All forms submitted", electronic signature confirmed, plan start dates, welcome kit mentioned  
+  - *Key Phrases*: "Your plan will start on [date]", "You're going to receive a card and welcome kit in the next 7 to 14 business days", "All is set up", "Do we have your consent to electronically sign and submit your application today?", "I'm glad we were able to set this up. Welcome to the 'X' plan"  
+
+ **Critical Clarification:**  
+- A call must **only** be classified as *Sales* if the **entire process is completed**: explicit consent, enrollment submitted, or full transfer finalized.  
+- **Do NOT classify as Sales** if:  
+  - The call is hung up midway (by CX or LA)  
+  - The customer is still answering qualification questions but no confirmation was given  
+  - The call ends abruptly without final confirmation or closing statements  
+- If the call shows partial progress but does not reach the full close, it must **NOT** be Sales. Instead:  
+  - Use *Not Interested* if CX disengaged/refused before closing  
+  - Use *Target Hangup* if LA stopped responding  
+  - Use *Callback* if there was clear intent to continue later
 
 # 2. DNC (Do Not Call)
 *Sub-Dispositions:*
@@ -98,15 +109,19 @@ or complete Transfer to new Licencesd Agent.
 
 # 8. Not Qualified
 *Sub-Dispositions:*
-- *CX DisQualifies* - LA said "we don't offer that sorry" or you don't qualify 
+- *CX Disqualifies* - LA said "we don't offer that sorry" or you don't qualify 
 - *CX has Medicare* - Already has Medicare, VA, Tricare
-- *CX Age NQ* - Age disqualification 
-- *CX can't afford plan* - Income too low 
-- *CX Condition Not Met* - Not US citizen, residency issues
+- *CX Age NQ* - Age disqualification (***Only if age was explicitly discussed and found outside criteria***)
+- *CX can't afford plan* - Income too low (***must be explicitly mentioned***)
+- *CX Condition Not Met* - Not US citizen, residency issues (***explicitly stated by CX***)
 - *CX already has coverage* - Looking for other insurance types
 - *CX Has Job* - Has employer-sponsored coverage
-- **If the scenario does not match any of the listed sub-dispositions, use your own sub-disposition which you thought would be best
+- **If the scenario does not match any of the listed sub-dispositions, use your own sub-disposition which you thought would be best — ***but ONLY if it directly relates to qualification criteria. Do NOT use this for hang-ups, silences, or general disinterest (those must go to Not Interested or Target Hang-up).***
+
   - *Key Phrases*: "I already had Medicare, Medicare, VA, Tricare", "Older than 65", "Less than 20k per year income", "Not US citizen", "Caller had employer-sponsored coverage"
+ **Important Clarification:**  
+- *Not Qualified* = **strictly for confirmed eligibility failures** (age, coverage type, residency, income).  
+- *Do NOT classify hangups, silences, or generic refusals as Not Qualified.* Those belong under *Not Interested* (customer disengaged/refused) or *Target Hangup* (LA stopped responding).  
 
 # 9. Traget hung up
 *Sub-Dispositions:*
@@ -150,18 +165,39 @@ or complete Transfer to new Licencesd Agent.
 5. *Cultural Sensitivity*: Recognize cultural communication styles and preferences
 
 ### Classification Priority Rules:
-1. *Sales* takes absolute precedence if enrollment was completed with confirmation
-2. *DNC* classifications override all others when explicitly requested
-3. *Not Interested* vs *NQ*: Use NQ for qualification failures, Not Interested for preference-based rejections and Check in the transcript if CX hasn't respond then it is also not intereted.
-4. *Callback* requires genuine interest + scheduling request
-5. *Unresponsive* vs *Tech Issues*: Use Tech Issues when audio problems are mentioned and unresponsive for ununderstandable response from CX.
-6. *Language barrier* only when communication completely fails due to language
-7. *Tech Issues* vs *Not Interested*: Use Tech Issues only when audio problems are explicitly mentioned ("can't hear you", "breaking up"), otherwise use Not Interested for call quality issues
-8. *Voicemail* vs *Not Interested*: Use Voicemail only when automated voicemail greeting is heard ("leave message after tone"), use Not Interested for human non-response
-9. *Target hung up* vs *Not Interested*: Use Target hung up only when LA stops responding while CX is still engaged, use Not Interested when CX stops responding
-10. *IVR* vs *Not Interested*: Use IVR only when automated system prompts are present ("Press 1 for X"), use Not Interested for human agent interactions
-11. *Misdialed* vs *Not Interested*: Use Misdialed only when wrong number is confirmed ("you have wrong number"), use Not Interested for general rejections
-12. *subsidy/incentivised* vs *NQ*: Use subsidy/incentivised only when CX already has coverage and seeks financial assistance, use NQ for coverage eligibility issues
+1. *Sales* takes absolute precedence if enrollment was completed with confirmation.  
+   **→ Sales may ONLY be chosen if closing confirmation phrases or explicit consent are present. Partial progress, hangups, or incomplete flows must NOT be classified as Sales.**
+
+2. *DNC* classifications override all others when explicitly requested.
+
+3. *Not Interested* vs *NQ*:  
+   - **Use *Not Qualified* ONLY for explicit eligibility failures** (age, coverage type, residency, income).  
+   - **Use *Not Interested* for hangups, silences, or disengagements where no qualification failure is mentioned.**  
+   - **Never classify incomplete calls or mid-call hangups as Not Qualified.**
+
+4. *Callback* requires genuine interest + scheduling request.
+
+5. *Unresponsive* vs *Tech Issues*: Use Tech Issues when audio problems are mentioned and Unresponsive for unintelligible responses from CX.
+
+6. *Language barrier* only when communication completely fails due to language.
+
+7. *Tech Issues* vs *Not Interested*: Use Tech Issues only when audio problems are explicitly mentioned ("can't hear you", "breaking up"), otherwise use Not Interested for call quality issues.
+
+8. *Voicemail* vs *Not Interested*: Use Voicemail only when automated voicemail greeting is heard ("leave message after tone"), use Not Interested for human non-response.  
+
+**8a. *IVR* vs *Voicemail*:  
+   - Classify as *IVR* if an automated system with interactive options is detected ("Press 1 for X", "For English, press 1").  
+   - Classify as *Voicemail* if the system is a mailbox greeting ("Your call is very important to us"). Please stay on the line, you will be transferred to the next available agent("Please leave your message after the tone").  
+   - Never confuse IVR prompts with Voicemail greetings — IVR expects key presses, Voicemail expects a recorded message.**
+
+9. *Target hung up* vs *Not Interested*: Use Target hung up only when LA stops responding while CX is still engaged, use Not Interested when CX stops responding.
+
+10. *IVR* vs *Not Interested*: Use IVR only when automated system prompts are present ("Press 1 for X"), use Not Interested for human agent interactions.
+
+11. *Misdialed* vs *Not Interested*: Use Misdialed only when wrong number is confirmed ("you have wrong number"), use Not Interested for general rejections.
+
+12. *subsidy/incentivised* vs *NQ*: Use subsidy/incentivised only when CX already has coverage and seeks financial assistance, use NQ for coverage eligibility issues.
+
 
 ### Advanced Decision Logic:
 - *Implied Sales*: If agent says "We're all set" and customer says "Thanks, goodbye" = Sale
