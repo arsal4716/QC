@@ -1,40 +1,335 @@
 const AdvancedStatsService = require("../services/statsService");
 const AdvancedRecordsService = require("../services/recordsService");
+const QueryBuilder = require("../utils/queryBuilder");
+const CallRecord = require("../models/CallRecord");
 const { success, error } = require("../utils/apiResponse");
 const logger = require("../utils/logger");
 const ExcelJS = require("exceljs");
-const { Transform, pipeline, Readable } = require("stream"); 
+const { Transform, pipeline, Readable } = require("stream");
 const { promisify } = require("util");
 const streamPipeline = promisify(pipeline);
-const exportColumns = [
-  { header: "Time Stamp", key: "callTimestamp" },
-  { header: "Publisher", key: "systemName" },
-  { header: "Caller ID", key: "callerId" },
-  { header: "Status", key: "disposition" },
-  { header: "Sub Disposition", key: "subDisposition" },
-  { header: "Duration (sec)", key: "durationSec" },
-  { header: "Campaign Name", key: "campaignName" },
-  { header: "Reason", key: "reason" },
-  { header: "Summary", key: "summary" },
-  { header: "Transcript", key: "transcript" },
-  { header: "Inbound Phone Number", key: "inboundNumber" },
-  { header: "Recording Link", key: "recordingUrl" },
-  { header: "System Call ID", key: "systemCallId" },
-  { header: "System Publisher ID", key: "systemPublisherId" },
-  { header: "Target", key: "target_name" },
-];
+const os = require("os");
+
+class StreamExportManager {
+  constructor() {
+    this.maxConcurrency = Math.max(1, os.cpus().length - 1);
+    this.batchSize = 10000;
+  }
+
+  async createCSVStream(cursor, transformFn) {
+    return new Promise((resolve, reject) => {
+      const stream = new Transform({
+        objectMode: true,
+        highWaterMark: this.batchSize,
+        transform(chunk, encoding, callback) {
+          try {
+            const transformed = transformFn(chunk);
+            callback(null, transformed);
+          } catch (err) {
+            callback(err);
+          }
+        }
+      });
+
+      resolve(stream);
+    });
+  }
+}
 
 class CallController {
   constructor() {
     this.statsService = AdvancedStatsService;
     this.recordsService = AdvancedRecordsService;
-    this.getStats = this.getStats.bind(this);
-    this.getRecords = this.getRecords.bind(this);
-    this.getRecordDetail = this.getRecordDetail.bind(this);
-    this.exportRecords = this.exportRecords.bind(this);
-    this.getFieldValues = this.getFieldValues.bind(this);
-    this.getCallTimeline = this.getCallTimeline.bind(this);
-    this.bulkUpdate = this.bulkUpdate.bind(this);
+    this.exportManager = new StreamExportManager();
+    this.exportColumns = this._getExportColumns();
+        Object.getOwnPropertyNames(CallController.prototype)
+      .filter(method => method !== 'constructor')
+      .forEach(method => {
+        this[method] = this[method].bind(this);
+      });
+  }
+
+  _getExportColumns() {
+    return [
+      { header: "Time Stamp", key: "callTimestamp", width: 20 },
+      { header: "Publisher", key: "publisherName", width: 15 },
+      { header: "Caller ID", key: "callerId", width: 15 },
+      { header: "Disposition", key: "disposition", width: 15 },
+      { header: "Sub Disposition", key: "sub_disposition", width: 15 },
+      { header: "Duration (sec)", key: "durationSec", width: 12 },
+      { header: "Campaign Name", key: "campaignName", width: 20 },
+      { header: "Reason", key: "reason", width: 20 },
+      { header: "Summary", key: "summary", width: 30 },
+      { header: "Target", key: "target_name", width: 15 },
+      { header: "Buyer ID", key: "systemBuyerId", width: 15 },
+      { header: "Recording Link", key: "recordingUrl", width: 30 },
+      { header: "System Call ID", key: "systemCallId", width: 20 },
+    ];
+  }
+
+  async exportRecords(req, res) {
+    let cursor = null;
+    let exportStartTime = Date.now();
+    
+    try {
+      const filters = { ...req.query };
+      const format = (filters.fmt || 'csv').toLowerCase();
+      
+      logger.info("Starting bulk export", { 
+        format, 
+        filters: Object.keys(filters).filter(k => filters[k]),
+        timestamp: new Date().toISOString()
+      });
+      if (!['csv', 'xlsx'].includes(format)) {
+        return error(res, {
+          status: 400,
+          message: "Invalid format. Supported formats: csv, xlsx",
+          code: "INVALID_EXPORT_FORMAT"
+        });
+      }
+
+      const queryBuilder = QueryBuilder.forModel(CallRecord)
+        .setDateRange(filters)
+        .setCampaignFilter(filters.campaign)
+        .setTargetFilter(filters.target)
+        .setPublisherFilter(filters.publisher)
+        .setBuyerFilter(filters.buyer)
+        .setDispositionFilter(filters.disposition, "qc.disposition")
+        .setStatusFilter(filters.status)
+        .setSearchFilter(filters.search)
+        .setSort(filters.sortBy || "callTimestamp", filters.sortDir || "desc")
+        .disableCache();
+
+      const finalQuery = queryBuilder._buildFinalQuery();
+      const estimatedCount = await CallRecord.countDocuments(finalQuery)
+        .maxTimeMS(10000)
+        .catch(() => 0); 
+
+      logger.info(`Export estimated records: ${estimatedCount.toLocaleString()}`);
+
+      res.setHeader('Content-Type', 
+        format === 'xlsx' 
+          ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+          : 'text/csv; charset=utf-8'
+      );
+      res.setHeader('Content-Disposition', 
+        `attachment; filename="call_records_${Date.now()}.${format}"`
+      );
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+
+      // Create cursor with optimized settings for large datasets
+      cursor = await CallRecord.find(finalQuery)
+        .select(this.recordsService.defaultProjection)
+        .sort(queryBuilder.options.sort || { callTimestamp: -1 })
+        .lean()
+        .batchSize(5000)
+        .maxTimeMS(300000)
+        .cursor();
+
+      let processedCount = 0;
+      let lastProgressLog = Date.now();
+
+      if (format === 'csv') {
+        await this._streamCSVExport(res, cursor, processedCount, lastProgressLog);
+      } else {
+        await this._streamExcelExport(res, cursor, processedCount, lastProgressLog);
+      }
+
+      const exportDuration = Date.now() - exportStartTime;
+      logger.metric("export_completed", {
+        duration: exportDuration,
+        recordCount: processedCount,
+        format,
+        recordsPerSecond: Math.round(processedCount / (exportDuration / 1000))
+      });
+
+    } catch (err) {
+      logger.error("Export failed catastrophically", {
+        error: err.message,
+        stack: err.stack,
+        duration: Date.now() - exportStartTime
+      });
+      if (cursor) {
+        try {
+          await cursor.close();
+        } catch (closeErr) {
+          logger.error("Failed to close cursor during error cleanup", closeErr);
+        }
+      }
+
+      if (!res.headersSent) {
+        return error(res, {
+          status: 500,
+          message: "Export processing failed",
+          code: "EXPORT_PROCESSING_FAILED"
+        });
+      } else {
+        res.end();
+      }
+    }
+  }
+
+  async _streamCSVExport(res, cursor, processedCount, lastProgressLog) {
+    return new Promise((resolve, reject) => {
+      let isFirstChunk = true;
+
+      const processRecord = (record) => {
+        try {
+          const transformed = this.recordsService._transformRecord(record);
+          const csvRow = this._convertToCSVRow(transformed);
+          
+          processedCount++;
+                    const now = Date.now();
+          if (processedCount % 10000 === 0 || now - lastProgressLog > 30000) {
+            logger.info(`CSV export progress: ${processedCount.toLocaleString()} records`);
+            lastProgressLog = now;
+          }
+
+          return csvRow;
+        } catch (transformErr) {
+          logger.warn("Failed to transform record for CSV", {
+            recordId: record._id,
+            error: transformErr.message
+          });
+          return ''; // Skip problematic records
+        }
+      };
+
+      const processBatch = async () => {
+        try {
+          const batch = [];
+          let record;
+          let batchSize = 0;
+
+          while (batchSize < 1000 && (record = await cursor.next())) {
+            batch.push(record);
+            batchSize++;
+          }
+
+          if (batch.length === 0) {
+            res.end();
+            resolve();
+            return;
+          }
+          const csvRows = batch.map(processRecord).filter(row => row !== '');
+          
+          if (csvRows.length > 0) {
+            if (isFirstChunk) {
+              const headers = this.exportColumns.map(col => col.header);
+              res.write(headers.join(',') + '\n');
+              isFirstChunk = false;
+            }
+            
+            res.write(csvRows.join('\n') + '\n');
+          }
+          setImmediate(processBatch);
+
+        } catch (batchErr) {
+          if (batchErr.message.includes('Cursor is closed')) {
+            res.end();
+            resolve();
+          } else {
+            reject(batchErr);
+          }
+        }
+      };
+      processBatch().catch(reject);
+
+      res.on('close', () => {
+        cursor.close().catch(() => {});
+        resolve(); 
+      });
+    });
+  }
+
+  async _streamExcelExport(res, cursor, processedCount, lastProgressLog) {
+    const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({
+      stream: res,
+      useStyles: false,
+      useSharedStrings: false
+    });
+
+    const worksheet = workbook.addWorksheet('Call Records');
+        worksheet.columns = this.exportColumns;
+
+    try {
+      let record;
+      let isFirstRecord = true;
+
+      while ((record = await cursor.next())) {
+        try {
+          const transformed = this.recordsService._transformRecord(record);
+          const rowData = this._convertToExcelRow(transformed);
+          
+          if (isFirstRecord) {
+            worksheet.addRow(Object.keys(rowData)).commit();
+            isFirstRecord = false;
+          }
+          
+          worksheet.addRow(rowData).commit();
+          processedCount++;
+          if (processedCount % 5000 === 0) {
+            logger.info(`Excel export progress: ${processedCount.toLocaleString()} records`);
+            lastProgressLog = Date.now();
+          }
+          if (processedCount % 10000 === 0) {
+            if (global.gc) {
+              global.gc();
+            }
+          }
+
+        } catch (transformErr) {
+          logger.warn("Failed to transform record for Excel", {
+            recordId: record._id,
+            error: transformErr.message
+          });
+          continue;
+        }
+      }
+
+      await workbook.commit();
+      logger.info(`Excel export completed: ${processedCount} records`);
+
+    } catch (err) {
+      await workbook.rollback();
+      throw err;
+    } finally {
+      await cursor.close();
+    }
+  }
+
+  _convertToCSVRow(record) {
+    const fields = this.exportColumns.map(col => {
+      let value = record[col.key];
+            if (col.key === 'disposition') value = record.qc?.disposition || record.disposition;
+      if (col.key === 'sub_disposition') value = record.qc?.sub_disposition || record.sub_disposition;
+      if (col.key === 'reason') value = record.qc?.reason || record.reason;
+      if (col.key === 'summary') value = record.qc?.summary || record.summary;
+      
+      if (value == null) value = '';
+      const stringValue = String(value).replace(/"/g, '""');
+      return `"${stringValue}"`;
+    });
+
+    return fields.join(',');
+  }
+
+  _convertToExcelRow(record) {
+    const row = {};
+    
+    this.exportColumns.forEach(col => {
+      let value = record[col.key];
+      
+      if (col.key === 'disposition') value = record.qc?.disposition || record.disposition;
+      if (col.key === 'sub_disposition') value = record.qc?.sub_disposition || record.sub_disposition;
+      if (col.key === 'reason') value = record.qc?.reason || record.reason;
+      if (col.key === 'summary') value = record.qc?.summary || record.summary;
+      
+      row[col.header] = value != null ? value : '';
+    });
+
+    return row;
   }
 
   async getStats(req, res) {
@@ -340,237 +635,6 @@ class CallController {
       });
     }
   }
-
-async exportRecords(req, res) {
-  try {
-    const startTime = process.hrtime();
-    const {
-      fmt = "csv",
-      datePreset,
-      startDate,
-      endDate,
-      campaign,
-      publisher,
-      disposition,
-      status,
-      search,
-      target,
-      buyer,
-      sortBy = "callTimestamp",
-      sortDir = "desc",
-    } = req.query;
-
-    const filters = {
-      datePreset,
-      startDate,
-      endDate,
-      campaign,
-      publisher,
-      disposition,
-      status,
-      search,
-      target,
-      buyer,
-    };
-
-    const options = {
-      sortBy,
-      sortDir,
-    };
-
-    logger.info("Starting export", { format: fmt, filters, options });
-    const records = await this.recordsService.getRecords(filters, {
-      ...options,
-      page: 1,   
-      limit: 1000000,   
-    });
-
-    if (!records || !records.data.length) {
-      return error(res, {
-        status: 404,
-        message: "No records found for export",
-        code: "NO_RECORDS_FOR_EXPORT",
-      });
-    }
-
-    const data = records.data;
-
-    const duration = process.hrtime(startTime);
-    const durationMs = (duration[0] * 1000 + duration[1] / 1000000).toFixed(2);
-
-    logger.metric("export_duration", durationMs, {
-      format: fmt,
-      recordCount: data.length,
-      filters: Object.keys(filters).filter((k) => filters[k]),
-    });
-
-    if (fmt === "xlsx") {
-      return this._exportExcel(res, data);
-    } else {
-      return this._exportCSV(res, data);
-    }
-  } catch (err) {
-    logger.error("Export failed", {
-      error: err.message,
-      stack: err.stack,
-      query: req.query,
-    });
-
-    return error(res, {
-      status: 500,
-      message: err.message || "Failed to export records",
-      code: "EXPORT_FAILED",
-    });
-  }
 }
 
-
-  async bulkUpdate(req, res) {
-    try {
-      const { ids, updates } = req.body;
-
-      if (!ids || !Array.isArray(ids) || ids.length === 0) {
-        return error(res, {
-          status: 400,
-          message: "Record IDs are required",
-          code: "MISSING_RECORD_IDS",
-        });
-      }
-
-      if (
-        !updates ||
-        typeof updates !== "object" ||
-        Object.keys(updates).length === 0
-      ) {
-        return error(res, {
-          status: 400,
-          message: "Update data is required",
-          code: "MISSING_UPDATE_DATA",
-        });
-      }
-
-      logger.info("Bulk update requested", {
-        recordCount: ids.length,
-        updates: Object.keys(updates),
-      });
-
-      const result = await this.recordsService.bulkUpdate(ids, updates);
-
-      logger.audit("records_bulk_update", req.user, {
-        recordCount: ids.length,
-        updates,
-        result,
-      });
-
-      return success(res, {
-        updatedCount: result.modifiedCount,
-        matchedCount: result.matchedCount,
-        recordIds: ids,
-        updates,
-        generatedAt: new Date().toISOString(),
-      });
-    } catch (err) {
-      logger.error("Bulk update failed", {
-        error: err.message,
-        stack: err.stack,
-        recordCount: req.body.ids?.length,
-      });
-
-      return error(res, {
-        status: 500,
-        message: err.message || "Failed to update records",
-        code: "BULK_UPDATE_FAILED",
-      });
-    }
-  }
-_exportExcel(res, records) {
-  try {
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename=call-records-${Date.now()}.xlsx`
-    );
-
-    const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({ stream: res });
-    const worksheet = workbook.addWorksheet("Call Records");
-
-    worksheet.columns = exportColumns.map(c => ({ ...c, width: 20 }));
-
-    for (const record of records) {
-      worksheet.addRow({
-        callTimestamp: record.callTimestamp,
-        systemName: record.systemName,
-        callerId: record.callerId,
-        disposition: record.qc?.disposition,
-        subDisposition: record.qc?.sub_disposition,
-        durationSec: record.durationSec,
-        campaignName: record.campaignName,
-        reason: record.qc?.reason,
-        summary: record.qc?.summary,
-        transcript: record.transcript,
-        inboundNumber: record.ringbaRaw?.caller_number,
-        recordingUrl: record.recordingUrl,
-        systemCallId: record.systemCallId,
-        systemPublisherId: record.systemPublisherId,
-        target_name: record.target_name,
-      }).commit();
-    }
-
-    worksheet.commit();
-    workbook.commit();
-  } catch (err) {
-    throw new Error(`Excel export failed: ${err.message}`);
-  }
-}
-_exportCSV(res, records) {
-  try {
-    const headers = exportColumns.map(c => c.header);
-
-    res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename=call-records-${Date.now()}.csv`
-    );
-
-    res.write(headers.join(",") + "\n");
-
-    const transform = new Transform({
-      objectMode: true,
-      transform(record, encoding, callback) {
-        try {
-          const row = exportColumns.map(col => {
-            let value = record[col.key];
-
-            // special cases for nested fields
-            if (col.key === "disposition") value = record.qc?.disposition;
-            if (col.key === "subDisposition") value = record.qc?.sub_disposition;
-            if (col.key === "reason") value = record.qc?.reason;
-            if (col.key === "summary") value = record.qc?.summary;
-            if (col.key === "inboundNumber") value = record.ringbaRaw?.caller_number;
-
-            return value != null ? `"${String(value).replace(/"/g, '""')}"` : "";
-          });
-
-          callback(null, row.join(",") + "\n");
-        } catch (err) {
-          callback(err);
-        }
-      },
-    });
-
-    (async () => {
-      await streamPipeline(
-        Readable.from(records, { objectMode: true }),
-        transform,
-        res
-      );
-    })();
-  } catch (err) {
-    throw new Error(`CSV export failed: ${err.message}`);
-  }
-}
-}
 module.exports = new CallController();

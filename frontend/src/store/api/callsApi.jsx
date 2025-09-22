@@ -46,15 +46,6 @@ export const callsApi = baseApi.injectEndpoints({
       providesTags: (result, error, id) => [{ type: 'CallDetail', id }],
       transformResponse: (response) => response.data,
     }),
-
-    exportRecords: builder.mutation({
-      query: (params) => ({
-        url: '/api/calls/export',
-        params,
-        responseHandler: (response) => response.blob(),
-      }),
-    }),
-
     bulkUpdateRecords: builder.mutation({
       query: (body) => ({
         url: '/api/calls/bulk-update',
@@ -73,6 +64,5 @@ export const {
   useGetRecordsQuery,
   useLazyGetRecordsQuery,
   useGetCallDetailQuery,
-  useExportRecordsMutation,
   useBulkUpdateRecordsMutation,
 } = callsApi;

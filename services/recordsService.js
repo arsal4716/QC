@@ -111,26 +111,40 @@ class RecordsService {
     }
   }
 
-  async exportRecords(filters = {}) {
-    try {
-      const queryBuilder = QueryBuilder.forModel(CallRecord)
-        .setDateRange(filters)
-        .setCampaignFilter(filters.campaign)
-        .setTargetFilter(filters.target)
-        .setPublisherFilter(filters.publisher)
-        .setBuyerFilter(filters.buyer)
-        .setDispositionFilter(filters.disposition, "qc.disposition")
-        .setStatusFilter(filters.status)
-        .setSearchFilter(filters.search)
-        .disableCache();
+async exportRecords(filters = {}) {
+  try {
+    const queryBuilder = QueryBuilder.forModel(CallRecord)
+      .setDateRange(filters)
+      .setCampaignFilter(filters.campaign)
+      .setTargetFilter(filters.target)
+      .setPublisherFilter(filters.publisher)
+      .setBuyerFilter(filters.buyer)
+      .setDispositionFilter(filters.disposition, "qc.disposition")
+      .setStatusFilter(filters.status)
+      .setSearchFilter(filters.search)
+      .setSort(filters.sortBy || "callTimestamp", filters.sortDir || "desc")
+      .disableCache(); 
 
-      const data = await queryBuilder.execute();
-      return this._transformRecords(data);
-    } catch (error) {
-      logger.error("Export records failed:", error);
-      throw new Error(`Export failed: ${error.message}`);
+    const cursor = await CallRecord.find(queryBuilder._buildFinalQuery())
+      .select(this.defaultProjection)
+      .sort(queryBuilder.options.sort || { callTimestamp: -1 })
+      .lean()
+      .cursor({ batchSize: 1000 });
+
+    const records = [];
+    for await (const doc of cursor) {
+      records.push(this._transformRecord(doc));
+      if (records.length % 5000 === 0) {
+        logger.info(`Export progress: ${records.length} records processed`);
+      }
     }
+
+    return records;
+  } catch (error) {
+    logger.error("Export records failed:", error);
+    throw new Error(`Export failed: ${error.message}`);
   }
+}
 
   async getFieldValues(field, filters = {}) {
     const validFields = [

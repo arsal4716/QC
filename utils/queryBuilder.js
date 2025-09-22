@@ -72,7 +72,7 @@ class QueryBuilder {
 
   setDispositionFilter(dispositions, field = "qc.disposition") {
     if (!dispositions) return this;
-    const list = this._normalizeArray(dispositions).map((d) => d.toLowerCase());
+  const list = this._normalizeArray(dispositions); 
     if (list.length)
       this.query[field] = list.length === 1 ? list[0] : { $in: list };
     return this;

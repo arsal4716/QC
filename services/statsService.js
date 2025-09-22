@@ -11,7 +11,6 @@ class AdvancedStatsService {
       'IVR', 'Subsidy', 'Language Barrier', 'Misdialed'
     ];
   }
-
 async getStats(filters = {}) {
   filters = Object.fromEntries(
     Object.entries(filters).filter(([_, v]) => v !== null && v !== 'null' && v !== '')
@@ -29,8 +28,8 @@ async getStats(filters = {}) {
       .setPublisherFilter(filters.publisher)
       .setTargetFilter(filters.target)  
       .setBuyerFilter(filters.buyer)    
-      .setDispositionFilter(filters.disposition)
-      .setStatusFilter(filters.status);
+      // .setDispositionFilter(filters.disposition)
+      // .setStatusFilter(filters.status);
 
     const [totalCounts, dispositionStats, hourlyStats] = await Promise.all([
       this._getTotalCounts(queryBuilder),
@@ -169,8 +168,6 @@ async getStats(filters = {}) {
         }
       }
     ];
-
-    // FIXED: Use options object
     const result = await CallRecord.aggregate(pipeline, { 
       maxTimeMS: 15000,
       allowDiskUse: true 

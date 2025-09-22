@@ -1,5 +1,3 @@
-// src/pages/CallLogs/CallLogs.jsx
-import React from 'react';
 import RecordsTable from '../../components/Table/RecordsTable';
 import withPageFilters from '../../Layout/withPageFilters';
 

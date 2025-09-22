@@ -1,10 +1,6 @@
-// src/components/Records/RecordsTable.jsx
 import React, { memo, useCallback, useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import {
-  useGetRecordsQuery,
-  useExportRecordsMutation,
-} from "../../store/api/callsApi";
+import { useGetRecordsQuery } from "../../store/api/callsApi";
 import { setRecordDetail } from "../../store/slices/modalSlice";
 import { setFilters } from "../../store/slices/filtersSlice";
 import { useDebounce } from "../../hooks/useDebounce";
@@ -12,82 +8,61 @@ import VirtualizedTable from "./VirtualizedTable";
 import { createDefaultColumns } from "../../contexts/ColumnsContext";
 import TableFilter from "../Filters/TableFilter";
 import { useQueryParams } from "../../hooks/useQueryParams";
+import { useExportManager } from "../../hooks/useExportManager";
 
 const RecordsTable = memo(({ refreshKey }) => {
   const dispatch = useDispatch();
   const filters = useSelector((state) => state.filters);
-  const [exportRecords] = useExportRecordsMutation();
-
+  const { exportState, exportRecords, downloadBlob, resetExportState } = useExportManager();
+  
   const searchValue = filters.search || "";
   const debouncedSearch = useDebounce(searchValue, 300);
   const columns = useMemo(() => createDefaultColumns(), []);
-
   const queryParams = useQueryParams();
 
-  const handleExport = useCallback(
-    async (format) => {
-      try {
-        const blob = await exportRecords({
-          ...queryParams,
-          fmt: format,
-        }).unwrap();
+  const handleExport = useCallback(async (format) => {
+    try {
+      const blob = await exportRecords({ ...queryParams, fmt: format });
+      downloadBlob(blob, format);
+      setTimeout(() => {
+        resetExportState();
+      }, 3000);
+    } catch (err) {
+      console.error("Export failed", err);
+    }
+  }, [exportRecords, downloadBlob, resetExportState, queryParams]);
 
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", `records.${format}`);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-      } catch (err) {
-        console.error("Export failed", err);
-      }
-    },
-    [exportRecords, queryParams]
-  );
+  const handleExportProgressHide = useCallback(() => {
+    resetExportState();
+  }, [resetExportState]);
 
-  const handleStatusChange = useCallback(
-    (newStatuses) => {
-      dispatch(setFilters({ status: newStatuses, page: 1 }));
-    },
-    [dispatch]
-  );
-
-const handleRowClick = useCallback(
-  (record) => {
+  const handleRowClick = useCallback((record) => {
     if (record) dispatch(setRecordDetail(record));
-  },
-  [dispatch]
-);
+  }, [dispatch]);
 
-  const handleSort = useCallback(
-    (sortBy, sortDir) => {
-      dispatch(setFilters({ sortBy, sortDir, page: 1 }));
-    },
-    [dispatch]
-  );
+  const handleSort = useCallback((sortBy, sortDir) => {
+    dispatch(setFilters({ sortBy, sortDir, page: 1 }));
+  }, [dispatch]);
 
-  const handlePageChange = useCallback(
-    (page) => {
-      dispatch(setFilters({ page }));
-    },
-    [dispatch]
-  );
+  const handlePageChange = useCallback((page) => {
+    dispatch(setFilters({ page }));
+  }, [dispatch]);
 
-  const handleSearch = useCallback(
-    (searchTerm) => {
-      dispatch(setFilters({ search: searchTerm, page: 1 }));
-    },
-    [dispatch]
-  );
-  const handleDispositionChange = useCallback(
-    (newDispositions) => {
-      dispatch(setFilters({ disposition: newDispositions, page: 1 }));
-    },
-    [dispatch]
-  );
+  const handleSearch = useCallback((searchTerm) => {
+    dispatch(setFilters({ search: searchTerm, page: 1 }));
+  }, [dispatch]);
+
+  const handleDispositionChange = useCallback((newDispositions) => {
+    dispatch(setFilters({ disposition: newDispositions, page: 1 }));
+  }, [dispatch]);
+
+  const handleStatusChange = useCallback((newStatuses) => {
+    dispatch(setFilters({ status: newStatuses, page: 1 }));
+  }, [dispatch]);
+
   const { autoRefresh, refreshInterval } = useSelector((s) => s.ui) || {};
   const pollingInterval = autoRefresh ? refreshInterval : 0;
+  
   const {
     data: recordsData,
     error,
@@ -112,9 +87,16 @@ const handleRowClick = useCallback(
   }
 
   return (
-    <div
-      className="card"
-      style={{ backgroundColor: "#17233d", overflow: "hidden" }}
+    <div 
+      className="card" 
+      style={{ 
+        backgroundColor: "#17233d", 
+        overflow: "visible", // Changed from "hidden" to "visible"
+        minHeight: "500px", // Ensure minimum height
+        display: "flex",
+        flexDirection: "column",
+        position: "relative" // Important for dropdown positioning
+      }}
     >
       <TableFilter
         search={searchValue}
@@ -125,20 +107,31 @@ const handleRowClick = useCallback(
         onStatusChange={handleStatusChange}
         selectedDispositions={filters.disposition || []}
         onDispositionChange={handleDispositionChange}
+        exportState={exportState}
+        onExportProgressHide={handleExportProgressHide}
       />
-      <VirtualizedTable
-        data={transformedData}
-        columns={columns}
-        loading={isLoading}
-        isFetching={isFetching}
-        totalCount={recordsData?.meta?.total || 0}
-        pagination={recordsData?.meta}
-        onRowClick={handleRowClick}
-        onSort={handleSort}
-        onPageChange={handlePageChange}
-        sortBy={filters.sortBy}
-        sortDir={filters.sortDir}
-      />
+      
+      {/* Table Container with proper spacing */}
+      <div style={{ 
+        flex: 1, 
+        minHeight: "300px",
+        position: "relative",
+        zIndex: 1 // Lower z-index than dropdown
+      }}>
+        <VirtualizedTable
+          data={transformedData}
+          columns={columns}
+          loading={isLoading}
+          isFetching={isFetching}
+          totalCount={recordsData?.meta?.total || 0}
+          pagination={recordsData?.meta}
+          onRowClick={handleRowClick}
+          onSort={handleSort}
+          onPageChange={handlePageChange}
+          sortBy={filters.sortBy}
+          sortDir={filters.sortDir}
+        />
+      </div>
     </div>
   );
 });
