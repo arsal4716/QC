@@ -23,19 +23,19 @@ app.use('/api', require('./routes/export'));
 app.use('/api/auth', require('./routes/authRoutes.js'));
 app.use('/api/', require('./routes/userRoute.js'));
 app.use('/api', require('./routes/filters.js'));
-// app.use(express.static(path.join(__dirname, 'frontend/build')));
-// app.get(/^\/(?!api).*$/, (req, res) => {
-//   res.sendFile(path.join(__dirname, 'frontend/build', 'index.html'));
-// });
+app.use(express.static(path.join(__dirname, 'frontend/build')));
+app.get(/^\/(?!api).*$/, (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend/build', 'index.html'));
+});
 
-if (process.env.NODE_ENV === "production") {
-  const path = require("path");
-  app.use(express.static(path.join(__dirname, "frontend/build")));
+// if (process.env.NODE_ENV === "production") {
+//   const path = require("path");
+//   app.use(express.static(path.join(__dirname, "frontend/build")));
 
-  app.get(/^\/(?!api).*/, (req, res) => {
-    res.sendFile(path.join(__dirname, "frontend/build", "index.html"));
-  });
-}
+//   app.get(/^\/(?!api).*/, (req, res) => {
+//     res.sendFile(path.join(__dirname, "frontend/build", "index.html"));
+//   });
+// }
 
 app.use((req, res) => res.status(404).json({ success: false, error: { code: "NOT_FOUND", message: "Route not found" } }));
 
