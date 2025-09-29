@@ -137,8 +137,6 @@ const DispositionFilter = ({ value = [], onChange, onClose }) => {
     </div>
   );
 };
-
-// Add custom scrollbar styles
 const scrollbarStyles = `
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;

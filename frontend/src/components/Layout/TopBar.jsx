@@ -7,11 +7,6 @@ const TopBar = memo(({
   onToggleFilters,
   autoRefresh,
   setAutoRefresh,
-  rangeLabel,
-  onApplyPublishers,
-  onApplyCampaigns,
-  selectedCampaigns,
-  selectedPublishers
 }) => {
   const dispatch = useDispatch();
   const filtersLabel = useSelector(selectFiltersLabel);

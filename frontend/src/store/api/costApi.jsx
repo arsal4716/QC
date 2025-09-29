@@ -11,7 +11,6 @@ export const costApi = baseApi.injectEndpoints({
       providesTags: ['CostStats'],
     }),
 
-    // Get payment history
     getPaymentHistory: builder.query({
       query: (params = {}) => ({
         url: '/api/cost/payments',

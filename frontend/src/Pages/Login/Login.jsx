@@ -1,60 +1,60 @@
-import React, { useState } from 'react';
-import { FaEnvelope, FaLock, FaEye, FaEyeSlash } from 'react-icons/fa';
-import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate, Link } from 'react-router-dom';
-import { toast } from 'react-toastify';
-import AuthForm from '../../components/AuthForm/AuthForm';
-import { useLoginMutation } from '../../store/api/AuthApi';
-import { selectAuthLoading } from '../../store/slices/authSlice';
-import InputField from './../../components/InputFields/InputField';
+import React, { useState } from "react";
+import { FaEnvelope, FaLock, FaEye, FaEyeSlash } from "react-icons/fa";
+import {useSelector } from "react-redux";
+import { useNavigate, Link } from "react-router-dom";
+import { toast } from "react-toastify";
+import AuthForm from "../../components/AuthForm/AuthForm";
+import { useLoginMutation } from "../../store/api/AuthApi";
+import { selectAuthLoading } from "../../store/slices/authSlice";
+import InputField from "./../../components/InputFields/InputField";
+import { useAuth } from "../../contexts/AuthContext";
 
 const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
-  
+
   const navigate = useNavigate();
-  const dispatch = useDispatch();
-  const [login, { isLoading }] = useLoginMutation();
+  const [loginMutation, { isLoading }] = useLoginMutation();
   const authLoading = useSelector(selectAuthLoading);
+  const { login } = useAuth();
 
   const validateForm = () => {
     const newErrors = {};
-    
     if (!email) {
-      newErrors.email = 'Email is required';
+      newErrors.email = "Email is required";
     } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Email is invalid';
+      newErrors.email = "Email is invalid";
     }
-    
     if (!password) {
-      newErrors.password = 'Password is required';
+      newErrors.password = "Password is required";
     } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
+      newErrors.password = "Password must be at least 6 characters";
     }
-    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    
     if (!validateForm()) return;
-    
+
     try {
-      const response = await login({ email, password }).unwrap();
-      
+      const response = await loginMutation({ email, password }).unwrap();
+
       if (response.success) {
-        toast.success(response.message || 'Login successful.');
-        navigate('/reporting', { replace: true });
+        const { token, user, message } = response.data;
+        login(token, user);
+
+        toast.success(message || "Login successful.");
+        navigate("/reporting", { replace: true });
       } else {
-        toast.error(response.message || 'Login failed');
+        toast.error(response.message || "Login failed");
       }
     } catch (error) {
-      console.error('Login Failed:', error);
-      toast.error(error.data?.message || 'Login failed!');
+      console.error("Login Failed:", error);
+      toast.error(error.data?.message || "Login failed!");
     }
   };
 
@@ -101,8 +101,8 @@ const Login = () => {
           <div className="text-center mt-4">
             <p className="text-sm text-gray-600">
               Don't have an account?{" "}
-              <Link 
-                to="/register" 
+              <Link
+                to="/register"
                 className="text-blue-600 hover:text-blue-800 font-medium"
               >
                 Sign up here

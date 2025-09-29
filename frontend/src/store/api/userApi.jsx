@@ -2,7 +2,6 @@ import { baseApi } from './baseApi';
 
 export const userApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    // Get all users with pagination and filtering
     getUsers: builder.query({
       query: (params = {}) => ({
         url: '/api/users',
@@ -30,7 +29,6 @@ export const userApi = baseApi.injectEndpoints({
           : ['UserList'],
     }),
 
-    // Get user by ID
     getUserById: builder.query({
       query: (id) => ({
         url: `/api/users/${id}`,
@@ -39,7 +37,6 @@ export const userApi = baseApi.injectEndpoints({
       providesTags: (result, error, id) => [{ type: 'User', id }],
     }),
 
-    // Create a new user
     createUser: builder.mutation({
       query: (userData) => ({
         url: '/api/users',
@@ -49,7 +46,6 @@ export const userApi = baseApi.injectEndpoints({
       invalidatesTags: ['UserList'],
     }),
 
-    // Update user by ID
     updateUser: builder.mutation({
       query: ({ id, ...userData }) => ({
         url: `/api/users/${id}`,
@@ -62,7 +58,6 @@ export const userApi = baseApi.injectEndpoints({
       ],
     }),
 
-    // Delete user by ID
     deleteUser: builder.mutation({
       query: (id) => ({
         url: `/api/users/${id}`,
@@ -70,18 +65,6 @@ export const userApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['UserList'],
     }),
-
-    // Bulk user operations
-    bulkUpdateUsers: builder.mutation({
-      query: (userUpdates) => ({
-        url: '/api/users/bulk',
-        method: 'PATCH',
-        body: userUpdates,
-      }),
-      invalidatesTags: ['UserList'],
-    }),
-
-    // Get user roles and permissions
     getUserRoles: builder.query({
       query: () => ({
         url: '/api/users/roles',
@@ -89,8 +72,6 @@ export const userApi = baseApi.injectEndpoints({
       transformResponse: (response) => response.roles || response.data || [],
       providesTags: ['UserRoles'],
     }),
-
-    // Update user role
     updateUserRole: builder.mutation({
       query: ({ userId, role }) => ({
         url: `/api/users/${userId}/role`,
@@ -103,8 +84,6 @@ export const userApi = baseApi.injectEndpoints({
         'UserRoles',
       ],
     }),
-
-    // Search users
     searchUsers: builder.query({
       query: (searchParams) => ({
         url: '/api/users/search',
@@ -129,7 +108,6 @@ export const {
   useCreateUserMutation,
   useUpdateUserMutation,
   useDeleteUserMutation,
-  useBulkUpdateUsersMutation,
   useGetUserRolesQuery,
   useLazyGetUserRolesQuery,
   useUpdateUserRoleMutation,
