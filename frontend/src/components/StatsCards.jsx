@@ -69,11 +69,9 @@ const statsConfig = [
   { key: "Hungup", label: "Hungup", flagKey: "flagTargetHU" },
   { key: "Callback", label: "Callback" },
   { key: "IVR", label: "IVR" },
-  { key: "Subsidy", label: "Subsidy" },
+  { key: "subsidy/incentivised", label: "Subsidy" },
   { key: "Language Barrier", label: "Language Barrier" },
   { key: "Misdialed", label: "Misdialed" },
-
-  // 🆕 Special flag-driven metrics
   { key: "RejectedUnknown", label: "Rejected / Unknown", flagKey: "flagRejectedUnknown" },
   { key: "RedNoConnect", label: "Red No Connects", flagKey: "flagRedNoConnect" },
 ];

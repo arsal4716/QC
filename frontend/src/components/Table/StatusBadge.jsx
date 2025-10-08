@@ -12,7 +12,7 @@ const statusConfig = {
   Hungup: { variant: "danger", icon: "bi-telephone-minus" },
   Callback: { variant: "primary", icon: "bi-telephone-plus" },
   IVR: { variant: "info", icon: "bi-robot" },
-  Subsidy: { variant: "success", icon: "bi-award" },
+  "subsidy/incentivised": { variant: "success", icon: "bi-award" },
   "Language Barrier": { variant: "warning", icon: "bi-translate" },
   Misdialed: { variant: "secondary", icon: "bi-telephone-outbound" },
   default: { variant: "light", icon: "bi-question-circle" },

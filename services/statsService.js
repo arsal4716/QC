@@ -17,7 +17,7 @@ class AdvancedStatsService {
       "Hungup",
       "Callback",
       "IVR",
-      "Subsidy",
+      "subsidy/incentivised",
       "Language Barrier",
       "Misdialed",
     ];

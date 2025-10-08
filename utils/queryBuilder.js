@@ -264,7 +264,6 @@ _buildDateRange(datePreset, startDate, endDate, timezone = "America/New_York") {
   if (datePreset && ranges[datePreset]) {
     ({ start, end } = ranges[datePreset]());
   } else if (datePreset === "custom" || (!datePreset && (startDate || endDate))) {
-    // Handle custom dates with proper timezone
     start = startDate
       ? DateTime.fromISO(startDate, { zone: timezone }).startOf("day")
       : null;
@@ -272,7 +271,6 @@ _buildDateRange(datePreset, startDate, endDate, timezone = "America/New_York") {
       ? DateTime.fromISO(endDate, { zone: timezone }).endOf("day")
       : null;
   } else {
-    // Default to today if no datePreset or custom dates
     ({ start, end } = ranges.today());
   }
 
