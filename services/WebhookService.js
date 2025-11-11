@@ -16,10 +16,10 @@ class WebhookService {
     this.redisConnection = new Redis(redisUrl, {
       maxRetriesPerRequest: null,
       enableReadyCheck: false,
-      retryStrategy(times) {
+      retryStrategy(times) { 
         console.warn(`Redis reconnect attempt #${times}`);
         return Math.min(times * 2000, 15000);
-      },
+      }, 
     });
     this.processingQueue = new Queue("call-processing", {
       connection: this.redisConnection,
