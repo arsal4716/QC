@@ -6,6 +6,7 @@ const DispositionFilter = ({ value = [], onChange, onClose }) => {
     { value: "Not Interested", label: "Not Interested", color: "warning" },
     { value: "Not Qualified", label: "Not Qualified", color: "warning" },
     { value: "DNC", label: "DNC", color: "danger" },
+    { value: "DNC (Do Not Call)", label: "DNC (Do Not Call)", color: "danger" },
     { value: "Voicemail", label: "Voicemail", color: "info" },
     { value: "Tech Issues", label: "Tech Issues", color: "secondary" },
     { value: "DWSPI", label: "DWSPI", color: "secondary" },
