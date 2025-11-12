@@ -96,6 +96,7 @@ const Caps = () => {
           <table className="table table-striped table-hover">
             <thead className="table-dark">
               <tr>
+                <th>no</th>
                 <th>Name</th>
                 <th>Number</th>
                 <th>Concurrency</th>
