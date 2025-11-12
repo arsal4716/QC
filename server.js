@@ -5,6 +5,7 @@ const dotenv = require("dotenv");
 const morgan = require("morgan");
 const connectDB = require("./config/db.js")
 const path = require('path');
+const capsRoutes = require('./routes/capsRoutes');
 dotenv.config();
 connectDB();
 
@@ -23,6 +24,7 @@ app.use('/api', require('./routes/export'));
 app.use('/api/auth', require('./routes/authRoutes.js'));
 app.use('/api/', require('./routes/userRoute.js'));
 app.use('/api', require('./routes/filters.js'));
+app.use('/api/caps', capsRoutes);
 app.use(express.static(path.join(__dirname, 'frontend/build')));
 app.get(/^\/(?!api).*$/, (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend/build', 'index.html'));
