@@ -9,6 +9,7 @@ import { ToastContainer, toast } from "react-toastify";
 const Caps = () => {
   const [search, setSearch] = useState("");
   const [showAll, setShowAll] = useState(false);
+  const [localTargets, setLocalTargets] = useState({});
 
   const { data, isLoading, refetch } = useGetCapsQuery();
   const [fetchCaps, { isLoading: fetching }] = useFetchCapsMutation();
@@ -24,7 +25,11 @@ const Caps = () => {
     }
   };
 
-  const handleTargetChange = async (id, value) => {
+  const setLocalTarget = (id, value) => {
+    setLocalTargets((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const saveTarget = async (id, value) => {
     const num = parseInt(value) || 0;
     try {
       await updateTarget({ id, target: num }).unwrap();
@@ -57,19 +62,20 @@ const Caps = () => {
   }, [data, showAll, search]);
 
   return (
-    <div className="container py-4">
+    <div className="container py-4" style={{ fontSize: "0.8rem" }}>
       <ToastContainer />
       <div className="d-flex justify-content-between align-items-center mb-3">
         <input
           type="text"
-          className="form-control w-50"
+          className="form-control form-control-sm w-50"
           placeholder="Search targets..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          style={{ fontSize: "0.8rem" }}
         />
         <div>
           <button
-            className={`btn ${
+            className={`btn btn-sm ${
               showAll ? "btn-secondary" : "btn-outline-secondary"
             } mx-2`}
             onClick={() => setShowAll((prev) => !prev)}
@@ -77,7 +83,7 @@ const Caps = () => {
             {showAll ? "Hide Unset" : "Show All"}
           </button>
           <button
-            className="btn btn-primary"
+            className="btn btn-sm btn-primary"
             onClick={handleFetchCaps}
             disabled={fetching}
           >
@@ -89,14 +95,16 @@ const Caps = () => {
       {isLoading ? (
         <div className="text-center py-5">
           <div className="spinner-border text-primary" />
-          <p className="mt-3">Loading caps...</p>
+          <p className="mt-3" style={{ fontSize: "0.8rem" }}>
+            Loading caps...
+          </p>
         </div>
       ) : (
         <div className="table-responsive">
-          <table className="table table-striped table-hover">
-            <thead className="table-dark">
+          <table className="table table-striped table-hover table-sm">
+            <thead className="table-dark" style={{ fontSize: "0.8rem" }}>
               <tr>
-                <th>no</th>
+                <th>Sr.No</th>
                 <th>Name</th>
                 <th>Number</th>
                 <th>Concurrency</th>
@@ -108,10 +116,10 @@ const Caps = () => {
                 <th>Target</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody style={{ fontSize: "0.8rem" }}>
               {filteredData.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="text-center py-3">
+                  <td colSpan="10" className="text-center py-2">
                     No caps found
                   </td>
                 </tr>
@@ -138,12 +146,17 @@ const Caps = () => {
                     <td>
                       <input
                         type="number"
-                        value={cap.target || ""}
+                        value={localTargets[cap._id] ?? cap.target ?? ""}
                         className="form-control form-control-sm"
-                        style={{ maxWidth: 80 }}
+                        style={{
+                          maxWidth: 70,
+                          fontSize: "0.75rem",
+                          padding: "0.25rem",
+                        }}
                         onChange={(e) =>
-                          handleTargetChange(cap._id, e.target.value)
+                          setLocalTarget(cap._id, e.target.value)
                         }
+                        onBlur={(e) => saveTarget(cap._id, e.target.value)}
                       />
                     </td>
                   </tr>
