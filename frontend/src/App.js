@@ -13,6 +13,7 @@ import CallLogs from "./Pages/CallLogs/CallLogs";
 import Register from "./Pages/Register/Register";
 import Login from "./Pages/Login/Login";
 import Users from "./Pages/Users/Users";
+import Caps from "./Pages/Caps/Caps";
 import ProtectedRoute from "./components/Route/ProtectedRoute";
 import PublicRoute from "./components/Route/PublicRoute";
 import { ToastContainer } from "react-toastify";
@@ -61,6 +62,16 @@ function App() {
                       <ProtectedRoute>
                         <DashboardLayout>
                           <CallLogs />
+                        </DashboardLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/caps"
+                    element={
+                      <ProtectedRoute>
+                        <DashboardLayout>
+                          <Caps />
                         </DashboardLayout>
                       </ProtectedRoute>
                     }

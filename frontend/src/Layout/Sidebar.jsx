@@ -4,13 +4,12 @@ const Sidebar = ({ collapsed, activePage, setActivePage }) => {
   const menuItems = [
     { id: "reporting", label: "Reporting", icon: "bi-bar-chart", path: "/reporting" },
     { id: "callLogs", label: "Call Logs", icon: "bi-phone", path: "/callLogs" },
+  { id: "caps", label: "Caps", icon: "bi-graph-up", path: "/caps" },
     { id: "users", label: "Users", icon: "bi-people", path: "/users" },
-    // { id: "Cost", label: "Cost", icon: "bi-money", path: "/cost" },
     { id: "logout", label: "Logout", icon: "bi-box-arrow-right", path: "/login" },
   ];
 
-  // Split top 3 items and the logout item
-  const topItems = menuItems.slice(0, 3);
+  const topItems = menuItems.slice(0, 4);
   const bottomItems = menuItems.filter((item) => item.id === "logout");
 
   return (
