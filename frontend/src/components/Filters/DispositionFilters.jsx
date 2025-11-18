@@ -11,7 +11,7 @@ const DispositionFilter = ({ value = [], onChange, onClose }) => {
     { value: "Tech Issues", label: "Tech Issues", color: "secondary" },
     { value: "DWSPI", label: "DWSPI", color: "secondary" },
     { value: "Unresponsive", label: "Unresponsive", color: "secondary" },
-    { value: "Hungup", label: "Hungup", color: "secondary" },
+    { value: "Target hung up", label: "Hungup", color: "secondary" },
     { value: "Callback", label: "Callback", color: "primary" },
     { value: "IVR", label: "IVR", color: "info" },
     { value: "subsidy/incentivised", label: "Subsidy", color: "info" },

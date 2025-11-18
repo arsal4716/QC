@@ -8,7 +8,6 @@ const StatCard = memo(({ label, count, percentage, isLoading, flag }) => {
         style={{ backgroundColor: "#17233d" }}
       >
         <div className="card-body p-3">
-          {/* Label + Flag */}
           <div className="small text-light opacity-75 d-flex justify-content-between">
             <span>{label}</span>
             {flag && (
@@ -16,7 +15,7 @@ const StatCard = memo(({ label, count, percentage, isLoading, flag }) => {
                 className="badge rounded-pill ms-2"
                 style={{
                   fontSize: "0.65rem",
-                  backgroundColor: "#dc3545", // red highlight
+                  backgroundColor: "#dc3545",
                 }}
               >
                 ⚠
@@ -24,7 +23,6 @@ const StatCard = memo(({ label, count, percentage, isLoading, flag }) => {
             )}
           </div>
 
-          {/* Count + % Badge */}
           {isLoading ? (
             <div
               className="spinner-border spinner-border-sm mt-3 text-light"
@@ -37,7 +35,7 @@ const StatCard = memo(({ label, count, percentage, isLoading, flag }) => {
                 className="badge rounded-pill"
                 style={{
                   fontSize: "0.7rem",
-                  backgroundColor: "#a4dbc2", // custom greenish badge
+                  backgroundColor: "#a4dbc2", 
                   color: "#000",
                   minWidth: "45px",
                   textAlign: "center",
@@ -55,7 +53,6 @@ const StatCard = memo(({ label, count, percentage, isLoading, flag }) => {
 
 StatCard.displayName = "StatCard";
 
-// ⚡ Config for cards
 const statsConfig = [
   { key: "totalProcessed", label: "Total Processed" },
   { key: "Sales", label: "Sales" },
@@ -66,7 +63,7 @@ const statsConfig = [
   { key: "Tech Issues", label: "Tech Issues" },
   { key: "DWSPI", label: "DWSPI" },
   { key: "Unresponsive", label: "Unresponsive" },
-  { key: "Hungup", label: "Hungup", flagKey: "flagTargetHU" },
+  { key: "Target hung up", label: "Hungup", flagKey: "flagTargetHU" },
   { key: "Callback", label: "Callback" },
   { key: "IVR", label: "IVR" },
   { key: "subsidy/incentivised", label: "Subsidy" },
@@ -83,7 +80,6 @@ const StatsCards = ({ stats: statsProp }) => {
   return (
     <div className="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-5 g-2 mb-4 mt-1">
       {statsConfig.map((config) => {
-        // Determine the data for this card
         const statItem =
           config.key === "totalProcessed"
             ? {
@@ -104,7 +100,6 @@ const StatsCards = ({ stats: statsProp }) => {
                 (d) => d.disposition.toLowerCase() === config.key.toLowerCase()
               );
 
-        // Decide if this card should be flagged
         let flag = false;
         if (config.flagKey) {
           flag = !!stats.flags?.[config.flagKey];
