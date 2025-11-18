@@ -105,21 +105,16 @@ const Caps = () => {
             <thead className="table-dark" style={{ fontSize: "0.8rem" }}>
               <tr>
                 <th>Sr.No</th>
-                <th>Name</th>
-                <th>Number</th>
-                <th>Concurrency</th>
-                <th>Hourly</th>
-                <th>Daily</th>
-                <th>Monthly</th>
-                <th>All-Time</th>
-                <th>Enabled</th>
+                <th>Target Name</th>
+                <th>Completed Calls</th>
+                <th>Paid</th>
                 <th>Target</th>
               </tr>
             </thead>
             <tbody style={{ fontSize: "0.8rem" }}>
               {filteredData.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="text-center py-2">
+                  <td colSpan="5" className="text-center py-2">
                     No caps found
                   </td>
                 </tr>
@@ -128,19 +123,14 @@ const Caps = () => {
                   <tr key={cap._id}>
                     <td>{index + 1}</td>
                     <td>{cap.name}</td>
-                    <td>{cap.number}</td>
-                    <td>{cap.concurrencyCap}</td>
-                    <td>{cap.hourlyCap}</td>
-                    <td>{cap.dailyCap}</td>
-                    <td>{cap.monthlyCap}</td>
-                    <td>{cap.allTimeCap}</td>
+                    <td>{cap.completedCalls || 0}</td>
                     <td>
                       <span
                         className={`badge ${
-                          cap.enabled ? "bg-success" : "bg-danger"
+                          cap.paidCalls > 0 ? "bg-success" : "bg-secondary"
                         }`}
                       >
-                        {cap.enabled ? "Yes" : "No"}
+                        {cap.paidCalls || 0}
                       </span>
                     </td>
                     <td>
