@@ -14,7 +14,7 @@ class AdvancedStatsService {
       "Tech Issues",
       "DWSPI",
       "Unresponsive",
-      "Hungup",
+      "Target hung up",
       "Callback",
       "IVR",
       "subsidy/incentivised",
@@ -196,10 +196,10 @@ class AdvancedStatsService {
       getCount("Failed") + getCount("Unknown") + getCount("Tech Issues");
     const redNoConnect =
       getCount("Failed") +
-      getCount("Hungup") +
+      getCount("Target hung up") +
       getCount("Unresponsive") +
       getCount("IVR");
-    const hungup = getCount("Hungup");
+    const hungup = getCount("Target hung up");
     const voicemail = getCount("Voicemail");
 
     return {
@@ -230,7 +230,7 @@ class AdvancedStatsService {
       getCount("Hungup") +
       getCount("Unresponsive") +
       getCount("IVR");
-    const hungup = getCount("Hungup");
+    const hungup = getCount("Target hung up");
     const voicemail = getCount("Voicemail");
 
     return {
