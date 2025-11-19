@@ -7,12 +7,16 @@ const dailyCallSchema = new mongoose.Schema({
 });
 
 const capSchema = new mongoose.Schema({
-  name: String,
+  name: { type: String, required: true },   
+  target_name: { type: String, default: "" },
   target: { type: Number, default: 0 },
-  dailyCalls: [dailyCallSchema], 
+
+  dailyCalls: [dailyCallSchema],
+
   totalCompletedCalls: { type: Number, default: 0 },
-  totalPaidCalls: { type: Number, default: 0 }, 
-  updatedAt: { type: Date, default: Date.now },
+  totalPaidCalls: { type: Number, default: 0 },
+
+  updatedAt: { type: Date, default: Date.now }
 });
 
-module.exports = mongoose.model("Cap", capSchema);
+module.exports = mongoose.model("Caps", capSchema);

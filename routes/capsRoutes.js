@@ -8,6 +8,6 @@ const {
 
 router.get('/', getCaps);
 router.patch('/target/:id', updateTarget);
-router.get('/pixel', processPixelFire); 
+router.get('/pixel', processPixelFire);
 
 module.exports = router;

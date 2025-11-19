@@ -41,25 +41,18 @@ const Caps = () => {
 
   const filteredData = useMemo(() => {
     if (!data?.data) return [];
-    let caps = data.data;
 
-    if (!showAll) {
-      caps = caps.filter(
-        (c) =>
-          c.enabled ||
-          [c.hourlyCap, c.dailyCap, c.monthlyCap, c.allTimeCap].some(
-            (v) => v > 0
-          )
-      );
-    }
+    let caps = data.data;
 
     if (search.trim()) {
       const lower = search.toLowerCase();
-      caps = caps.filter((c) => c.name.toLowerCase().includes(lower));
+      caps = caps.filter((c) =>
+        (c.target_name || c.name).toLowerCase().includes(lower)
+      );
     }
 
     return caps;
-  }, [data, showAll, search]);
+  }, [data, search]);
 
   return (
     <div className="container py-4" style={{ fontSize: "0.8rem" }}>
@@ -122,7 +115,7 @@ const Caps = () => {
                 filteredData.map((cap, index) => (
                   <tr key={cap._id}>
                     <td>{index + 1}</td>
-                    <td>{cap.name}</td>
+                    <td>{cap.target_name || cap.name}</td> {/* updated */}
                     <td>{cap.completedCalls || 0}</td>
                     <td>
                       <span
