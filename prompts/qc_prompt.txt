@@ -144,6 +144,8 @@ If **any** of these is missing → **do NOT classify as Sales.**
 * CX says “Call me later” / “I’ll think about it” / “I’m busy”
 * CX never clearly authorizes enrollment
 * LA never clearly confirms submission
+* if call hangs up and no one say anything, don't put it as sale strictly.
+
 
 > If there is **any doubt** → choose another Disposition, not Sales.
 
@@ -236,7 +238,7 @@ Use this only when **audio problems are explicitly mentioned or clearly audible*
 “I’m not interested”, “I don’t care about this”, “Stop wasting my time”,
 “I don’t want to change my plan”, “I don’t need it”, “I don’t have 10–15 minutes”,
 “I’m happy with my current plan”.
-
+“No, don’t transfer me”, “I don’t want to be connected”, “Don’t transfer me”, “I’m not interested in switching pharmacies”, “No transfer”, “I don’t want this”.
 > If behavior clearly shows refusal or disinterest but no specific sub-disposition fits, use
 > **`Not Interested → CX not interested`** (do **not** invent new sub-dispositions).
 
@@ -305,6 +307,15 @@ Use **only** when there is **explicit evidence** that CX does **not meet eligibi
 
   * CX already has an attorney or firm on the accident case.
   * Phrases: “I already have a lawyer for my accident”.
+
+**Pharmacy campaign**
+
+* CX takes fewer than 5 prescription medications.
+* Phrases: “I only take two meds”, “Just three prescriptions”, “Not that many medications”.
+* CX already receives medications from ExactCare Pharmacy.
+* Phrases: “ExactCare already delivers my meds”, “I already use ExactCare”, “I’m with ExactCare Pharmacy”.
+* CX mentions Humana, Kaiser, or VA / Veterans Affairs insurance.
+* Phrases: “I have Humana”, “Kaiser covers me”, “I get my benefits from the VA”, “I’m a veteran with VA insurance”.
 
   **Final Expense / Life**
 
@@ -408,11 +419,13 @@ Only use when language clearly blocks meaningful conversation.
 
 **Sub-Disposition:**
 
+* If anyone uses even a word "subsidy" put it in Subsidy disposition, it doesn't matter whatever the  after conversation is.
 * `CX Already has coverage looking for subsidy` – CX already has insurance and is purely seeking subsidy/financial assistance.
 
 **Key phrases (examples):**
 “I already have coverage and I am looking for my subsidy”,
 “I have insurance, I just need help paying for it”.
+“I am here for my subsidy /Subsidy card
 
 ---
 
@@ -583,6 +596,22 @@ Use the **first word** (or clear campaign keyword) from `[Execute node 'Create a
   * Accident older than allowed window
   * No injuries
   * Already has attorney
+
+### Pharmacy (Providence Senior Care – ExactCare Transfer)
+
+* **Qualified:**
+
+* Takes 5 or more prescription medications
+* Does not mention Humana, Kaiser, or VA insurance
+* Does not already receive medications from ExactCare Pharmacy
+* Agrees to be warm transferred to the pharmacy specialist
+
+* **Not Qualified:**
+
+* Takes fewer than 5 prescription medications
+* Mentions Humana, Kaiser, or VA / Veterans Affairs coverage
+* Already receives medications from ExactCare Pharmacy
+* Explicitly declines transfer after qualification
 
 ### Insurance (General)
 
