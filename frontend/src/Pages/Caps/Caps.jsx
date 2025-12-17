@@ -8,31 +8,35 @@ import { ToastContainer, toast } from "react-toastify";
 
 const Caps = () => {
   const [search, setSearch] = useState("");
-  const [showAll, setShowAll] = useState(false);
   const [localTargets, setLocalTargets] = useState({});
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [sortBy, setSortBy] = useState("percentComplete");
+  const [order, setOrder] = useState("desc");
 
-  const { data, isLoading, refetch } = useGetCapsQuery();
+  const { data, isLoading, refetch } = useGetCapsQuery({
+    startDate,
+    endDate,
+    sortBy,
+    order,
+  });
+
   const [fetchCaps, { isLoading: fetching }] = useFetchCapsMutation();
   const [updateTarget] = useUpdateTargetMutation();
 
   const handleFetchCaps = async () => {
     try {
       await fetchCaps().unwrap();
-      toast.success("Caps fetched and updated successfully");
-      await refetch();
+      toast.success("Caps fetched successfully");
+      refetch();
     } catch {
       toast.error("Error fetching caps");
     }
   };
 
-  const setLocalTarget = (id, value) => {
-    setLocalTargets((prev) => ({ ...prev, [id]: value }));
-  };
-
   const saveTarget = async (id, value) => {
-    const num = parseInt(value) || 0;
     try {
-      await updateTarget({ id, target: num }).unwrap();
+      await updateTarget({ id, target: Number(value) || 0 }).unwrap();
       toast.success("Target updated");
     } catch {
       toast.error("Failed to update target");
@@ -42,113 +46,85 @@ const Caps = () => {
   const filteredData = useMemo(() => {
     if (!data?.data) return [];
 
-    let caps = data.data;
-
-    if (search.trim()) {
-      const lower = search.toLowerCase();
-      caps = caps.filter((c) =>
-        (c.target_name || c.name).toLowerCase().includes(lower)
-      );
-    }
-
-    return caps;
+    return data.data.filter((c) =>
+      (c.target_name || c.name)
+        .toLowerCase()
+        .includes(search.toLowerCase())
+    );
   }, [data, search]);
+
+  const getRowClass = (percent) => {
+    if (percent >= 100) return "table-danger";
+    if (percent >= 80) return "table-warning";
+    return "";
+  };
 
   return (
     <div className="container py-4" style={{ fontSize: "0.8rem" }}>
       <ToastContainer />
-      <div className="d-flex justify-content-between align-items-center mb-3">
+
+      <div className="d-flex gap-2 mb-3">
         <input
           type="text"
-          className="form-control form-control-sm w-50"
-          placeholder="Search targets..."
+          className="form-control form-control-sm"
+          placeholder="Search target..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{ fontSize: "0.8rem" }}
         />
-        <div>
-          <button
-            className={`btn btn-sm ${
-              showAll ? "btn-secondary" : "btn-outline-secondary"
-            } mx-2`}
-            onClick={() => setShowAll((prev) => !prev)}
-          >
-            {showAll ? "Hide Unset" : "Show All"}
-          </button>
-          <button
-            className="btn btn-sm btn-primary"
-            onClick={handleFetchCaps}
-            disabled={fetching}
-          >
-            {fetching ? "Fetching..." : "Fetch Caps"}
-          </button>
-        </div>
+
+        <input
+          type="date"
+          className="form-control form-control-sm"
+          value={startDate}
+          onChange={(e) => setStartDate(e.target.value)}
+        />
+
+        <input
+          type="date"
+          className="form-control form-control-sm"
+          value={endDate}
+          onChange={(e) => setEndDate(e.target.value)}
+        />
       </div>
 
-      {isLoading ? (
-        <div className="text-center py-5">
-          <div className="spinner-border text-primary" />
-          <p className="mt-3" style={{ fontSize: "0.8rem" }}>
-            Loading caps...
-          </p>
-        </div>
-      ) : (
-        <div className="table-responsive">
-          <table className="table table-striped table-hover table-sm">
-            <thead className="table-dark" style={{ fontSize: "0.8rem" }}>
-              <tr>
-                <th>Sr.No</th>
-                <th>Target Name</th>
-                <th>Completed Calls</th>
-                <th>Paid</th>
-                <th>Target</th>
-              </tr>
-            </thead>
-            <tbody style={{ fontSize: "0.8rem" }}>
-              {filteredData.length === 0 ? (
-                <tr>
-                  <td colSpan="5" className="text-center py-2">
-                    No caps found
-                  </td>
-                </tr>
-              ) : (
-                filteredData.map((cap, index) => (
-                  <tr key={cap._id}>
-                    <td>{index + 1}</td>
-                    <td>{cap.target_name || cap.name}</td> {/* updated */}
-                    <td>{cap.completedCalls || 0}</td>
-                    <td>
-                      <span
-                        className={`badge ${
-                          cap.paidCalls > 0 ? "bg-success" : "bg-secondary"
-                        }`}
-                      >
-                        {cap.paidCalls || 0}
-                      </span>
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        value={localTargets[cap._id] ?? cap.target ?? ""}
-                        className="form-control form-control-sm"
-                        style={{
-                          maxWidth: 70,
-                          fontSize: "0.75rem",
-                          padding: "0.25rem",
-                        }}
-                        onChange={(e) =>
-                          setLocalTarget(cap._id, e.target.value)
-                        }
-                        onBlur={(e) => saveTarget(cap._id, e.target.value)}
-                      />
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <table className="table table-sm table-hover">
+        <thead className="table-dark">
+          <tr>
+            <th>#</th>
+            <th onClick={() => setSortBy("target_name")}>Target</th>
+            <th onClick={() => setSortBy("completedCalls")}>Completed</th>
+            <th onClick={() => setSortBy("paidCalls")}>Paid</th>
+            <th>Target</th>
+            <th onClick={() => setSortBy("percentComplete")}>% Complete</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filteredData.map((cap, i) => (
+            <tr key={cap._id} className={getRowClass(cap.percentComplete)}>
+              <td>{i + 1}</td>
+              <td>{cap.target_name || cap.name}</td>
+              <td>{cap.completedCalls}</td>
+              <td>{cap.paidCalls}</td>
+              <td>
+                <input
+                  type="number"
+                  className="form-control form-control-sm"
+                  style={{ width: 70 }}
+                  defaultValue={cap.target}
+                  onBlur={(e) => saveTarget(cap._id, e.target.value)}
+                />
+              </td>
+              <td>
+                <span className="badge bg-info">
+                  {cap.percentComplete}%
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {isLoading && <div className="text-center">Loading...</div>}
     </div>
   );
 };
