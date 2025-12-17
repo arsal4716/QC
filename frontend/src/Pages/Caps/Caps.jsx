@@ -47,9 +47,7 @@ const Caps = () => {
     if (!data?.data) return [];
 
     return data.data.filter((c) =>
-      (c.target_name || c.name)
-        .toLowerCase()
-        .includes(search.toLowerCase())
+      (c.target_name || c.name).toLowerCase().includes(search.toLowerCase())
     );
   }, [data, search]);
 
@@ -57,6 +55,14 @@ const Caps = () => {
     if (percent >= 100) return "table-danger";
     if (percent >= 80) return "table-warning";
     return "";
+  };
+  const handleSort = (column) => {
+    if (sortBy === column) {
+      setOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(column);
+      setOrder("desc");
+    }
   };
 
   return (
@@ -91,11 +97,37 @@ const Caps = () => {
         <thead className="table-dark">
           <tr>
             <th>#</th>
-            <th onClick={() => setSortBy("target_name")}>Target</th>
-            <th onClick={() => setSortBy("completedCalls")}>Completed</th>
-            <th onClick={() => setSortBy("paidCalls")}>Paid</th>
+            <th
+              onClick={() => handleSort("target_name")}
+              style={{ cursor: "pointer" }}
+            >
+              Target {sortBy === "target_name" && (order === "asc" ? "↑" : "↓")}
+            </th>
+
+            <th
+              onClick={() => handleSort("completedCalls")}
+              style={{ cursor: "pointer" }}
+            >
+              Completed{" "}
+              {sortBy === "completedCalls" && (order === "asc" ? "↑" : "↓")}
+            </th>
+
+            <th
+              onClick={() => handleSort("paidCalls")}
+              style={{ cursor: "pointer" }}
+            >
+              Paid {sortBy === "paidCalls" && (order === "asc" ? "↑" : "↓")}
+            </th>
+
             <th>Target</th>
-            <th onClick={() => setSortBy("percentComplete")}>% Complete</th>
+
+            <th
+              onClick={() => handleSort("percentComplete")}
+              style={{ cursor: "pointer" }}
+            >
+              % Complete{" "}
+              {sortBy === "percentComplete" && (order === "asc" ? "↑" : "↓")}
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -115,9 +147,7 @@ const Caps = () => {
                 />
               </td>
               <td>
-                <span className="badge bg-info">
-                  {cap.percentComplete}%
-                </span>
+                <span className="badge bg-info">{cap.percentComplete}%</span>
               </td>
             </tr>
           ))}
