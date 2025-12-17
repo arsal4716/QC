@@ -1,8 +1,5 @@
 const Cap = require("../models/Caps");
 
-/**
- * EST Date YYYY-MM-DD
- */
 const getCurrentESTDate = () => {
   const now = new Date();
   const estOffset = -5 * 60;
@@ -17,10 +14,6 @@ const calcPercent = (paid, target) => {
   return Number(((paid / target) * 100).toFixed(2));
 };
 
-/**
- * GET CAPS (DATE RANGE + SORTING)
- * /caps?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD&sortBy=paidCalls&order=desc
- */
 exports.getCaps = async (req, res) => {
   try {
     const {
@@ -63,8 +56,6 @@ exports.getCaps = async (req, res) => {
         updatedAt: cap.updatedAt,
       };
     });
-
-    // SORTING
     transformed.sort((a, b) => {
       const aVal = a[sortBy] ?? 0;
       const bVal = b[sortBy] ?? 0;
@@ -84,9 +75,6 @@ exports.getCaps = async (req, res) => {
   }
 };
 
-/**
- * UPDATE TARGET
- */
 exports.updateTarget = async (req, res) => {
   try {
     const { id } = req.params;
@@ -104,9 +92,7 @@ exports.updateTarget = async (req, res) => {
   }
 };
 
-/**
- * PIXEL FIRE (DAILY STATS)
- */
+
 exports.processPixelFire = async (req, res) => {
   try {
     const { target_id, target_name, status, paid, duration } = req.query;
