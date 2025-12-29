@@ -18,11 +18,14 @@ const withPageFilters = (
     const [autoRefresh, setAutoRefresh] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
     
-    // Get selections from Redux store
     const selectedCampaigns = useSelector(state => state.filters.selectedCampaigns || []);
     const selectedPublishers = useSelector(state => state.filters.selectedPublishers || []);
-    const selectedTargets = useSelector(state => state.filters.selectedTargets || []);
-    const selectedBuyers = useSelector(state => state.filters.selectedBuyers || []);
+const selectedTargets = useSelector(
+  state => state.filters.selectedTarget || []
+);
+const selectedBuyers = useSelector(
+  state => state.filters.selectedBuyer || []
+);
 
     useAutoRefresh(() => {
       if (autoRefresh) setRefreshKey((prev) => prev + 1);

@@ -1,8 +1,9 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { toast } from "react-toastify";
 import { useDispatch } from "react-redux";
 import { setFilters } from "../store/slices/filtersSlice";
-
+import { resetFilters } from "../store/slices/filtersSlice";
+import { clearModalSelection } from "../store/slices/modalSlice";
 const DATE_PRESETS = [
   { value: "today", label: "Today" },
   { value: "yesterday", label: "Yesterday" },
@@ -25,13 +26,9 @@ const FiltersPanel = React.memo(
     onClose,
     initial,
     selectedCampaigns,
-    setSelectedCampaigns,
     selectedPublishers,
-    setSelectedPublishers,
     selectedTargets,
-    setSelectedTargets,
     selectedBuyers,
-    setSelectedBuyers,
   }) => {
     const dispatch = useDispatch();
     const [preset, setPreset] = useState(initial?.preset || "today");
@@ -66,28 +63,28 @@ const FiltersPanel = React.memo(
     ]);
 
     const handleReset = useCallback(() => {
-      setSelectedCampaigns([]);
-      setSelectedPublishers([]);
-      setSelectedTargets([]);
-      setSelectedBuyers([]);
+      dispatch(resetFilters());
+      ["campaign", "publisher", "target", "buyer"].forEach((type) => {
+        dispatch(clearModalSelection({ modalType: type }));
+      });
+
       setPreset("today");
       setDateRange({ startDate: "", endDate: "" });
       toast.info("Filters reset");
-    }, [
-      setSelectedCampaigns,
-      setSelectedPublishers,
-      setSelectedTargets,
-      setSelectedBuyers,
-    ]);
-
+    }, [dispatch]);
     const handlePresetChange = useCallback((e) => {
       setPreset(e.target.value);
     }, []);
-
     const handleDateChange = useCallback((field, value) => {
       setDateRange((prev) => ({ ...prev, [field]: value }));
     }, []);
-
+    useEffect(() => {
+      setPreset(initial?.datePreset || "today");
+      setDateRange({
+        startDate: initial?.startDate || "",
+        endDate: initial?.endDate || "",
+      });
+    }, [initial]);
     const datePresetsOptions = useMemo(
       () =>
         DATE_PRESETS.map(({ value, label }) => (
