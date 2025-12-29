@@ -16,17 +16,21 @@ class QueryBuilder {
     return new QueryBuilder(model);
   }
 
-  setCampaignFilter(campaigns) {
+ setCampaignFilter(campaigns) {
     if (!campaigns) return this;
     const list = this._normalizeArray(campaigns);
     if (list.length) {
-      this.query.$and = this.query.$and || [];
-      this.query.$and.push({
-        $or: [{ campaignName: { $in: list } }, { campaignSlug: { $in: list } }],
-      });
+        this.query.$and = this.query.$and || [];
+        this.query.$and.push({
+            $or: [
+                { campaignSlug: { $in: list } },  
+                { campaignName: { $in: list } }   
+            ],
+        });
     }
     return this;
-  }
+}
+
 
   setPublisherFilter(publishers) {
     if (!publishers) return this;
