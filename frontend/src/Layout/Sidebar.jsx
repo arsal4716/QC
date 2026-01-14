@@ -2,11 +2,27 @@ import SidebarItem from "./SidebarItem";
 
 const Sidebar = ({ collapsed, activePage, setActivePage }) => {
   const menuItems = [
-    { id: "reporting", label: "Reporting", icon: "bi-bar-chart", path: "/reporting" },
+    {
+      id: "reporting",
+      label: "Reporting",
+      icon: "bi-bar-chart",
+      path: "/reporting",
+    },
     { id: "callLogs", label: "Call Logs", icon: "bi-phone", path: "/callLogs" },
-  { id: "caps", label: "Caps", icon: "bi-graph-up", path: "/caps" },
+    { id: "caps", label: "Caps", icon: "bi-graph-up", path: "/caps" },
+    {
+      id: "TwilioCalls",
+      label: "Twilio Calls",
+      icon: "bi-telephone",
+      path: "/twilioCalls",
+    },
     { id: "users", label: "Users", icon: "bi-people", path: "/users" },
-    { id: "logout", label: "Logout", icon: "bi-box-arrow-right", path: "/login" },
+    {
+      id: "logout",
+      label: "Logout",
+      icon: "bi-box-arrow-right",
+      path: "/login",
+    },
   ];
 
   const topItems = menuItems.slice(0, 4);

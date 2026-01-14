@@ -14,6 +14,7 @@ import Register from "./Pages/Register/Register";
 import Login from "./Pages/Login/Login";
 import Users from "./Pages/Users/Users";
 import Caps from "./Pages/Caps/Caps";
+import TwilioCalls from "./Pages/TwilioCalls/TwilioCalls";
 import ProtectedRoute from "./components/Route/ProtectedRoute";
 import PublicRoute from "./components/Route/PublicRoute";
 import { ToastContainer } from "react-toastify";
@@ -72,6 +73,16 @@ function App() {
                       <ProtectedRoute>
                         <DashboardLayout>
                           <Caps />
+                        </DashboardLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/twilioCalls"
+                    element={
+                      <ProtectedRoute>
+                        <DashboardLayout>
+                          <TwilioCalls />
                         </DashboardLayout>
                       </ProtectedRoute>
                     }

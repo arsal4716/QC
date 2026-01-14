@@ -7,7 +7,7 @@ import Loader from '../Loader/Loader';
 const ProtectedRoute = ({ children, requiredRoles = [] }) => {
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const isLoading = useSelector(selectAuthLoading);
-  const user = useSelector(selectCurrentUser); // Move hook to top
+  const user = useSelector(selectCurrentUser); 
   const location = useLocation();
 
   if (isLoading) {

@@ -87,10 +87,14 @@ const filtersSlice = createSlice({
     setPage: (state, action) => {
       state.page = Math.max(1, Number(action.payload) || 1);
     },
-    resetFilters: () => {
-  return initialState;
-},
-
+    resetFilters: (state) => {
+      return {
+        ...initialState,
+        selectedCampaigns: state.selectedCampaigns,
+        selectedPublishers: state.selectedPublishers,
+        selectedDispositions: state.selectedDispositions,
+      };
+    },
   },
 });
 

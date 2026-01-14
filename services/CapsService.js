@@ -25,7 +25,6 @@ const fetchCapsFromRingba = async () => {
     enabled: !!t.enabled, 
   }));
 
-  console.log("Mapped targets count:", mappedTargets.length);
   return mappedTargets;
 };
 
