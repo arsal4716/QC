@@ -91,7 +91,18 @@ const Caps = () => {
           value={endDate}
           onChange={(e) => setEndDate(e.target.value)}
         />
+        <button
+        className="btn btn-sm btn-success"
+        onClick={() =>
+          window.open(
+            `/api/caps/export?startDate=${startDate}&endDate=${endDate}`,
+          )
+        }
+      >
+        CSV
+      </button>
       </div>
+      
 
       <table className="table table-sm table-hover">
         <thead className="table-dark">

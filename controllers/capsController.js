@@ -1,5 +1,8 @@
 const Cap = require("../models/Caps");
 
+/**
+ * Get current EST date (YYYY-MM-DD)
+ */
 const getCurrentESTDate = () => {
   const now = new Date();
   const estOffset = -5 * 60;
@@ -9,24 +12,43 @@ const getCurrentESTDate = () => {
   return estTime.toISOString().split("T")[0];
 };
 
+/**
+ * Calculate percent safely
+ */
 const calcPercent = (paid, target) => {
   if (!target || target === 0) return 0;
   return Number(((paid / target) * 100).toFixed(2));
 };
 
+/**
+ * Calculate inclusive day range
+ */
+const getDaysBetween = (start, end) => {
+  const s = new Date(start);
+  const e = new Date(end);
+  return Math.max(
+    1,
+    Math.ceil((e - s) / (1000 * 60 * 60 * 24)) + 1
+  );
+};
+
+/**
+ * GET CAPS (DATE-RANGE AWARE TARGET)
+ */
 exports.getCaps = async (req, res) => {
   try {
     const {
       startDate,
       endDate,
-      sortBy = "target_name",
-      order = "asc",
+      sortBy = "percentComplete",
+      order = "desc",
     } = req.query;
 
     const caps = await Cap.find();
 
     const start = startDate || getCurrentESTDate();
     const end = endDate || start;
+    const days = getDaysBetween(start, end);
 
     let transformed = caps.map((cap) => {
       const rangeData = cap.dailyCalls.filter(
@@ -43,19 +65,25 @@ exports.getCaps = async (req, res) => {
         0
       );
 
-      const percentComplete = calcPercent(paidCalls, cap.target);
+      // ✅ DAILY TARGET × NUMBER OF DAYS
+      const adjustedTarget = cap.target * days;
+      const percentComplete = calcPercent(paidCalls, adjustedTarget);
 
       return {
         _id: cap._id,
         name: cap.name,
         target_name: cap.target_name,
-        target: cap.target,
+        baseTarget: cap.target,       // daily target
+        target: adjustedTarget,       // range target
+        days,
         completedCalls,
         paidCalls,
         percentComplete,
         updatedAt: cap.updatedAt,
       };
     });
+
+    // Sorting
     transformed.sort((a, b) => {
       const aVal = a[sortBy] ?? 0;
       const bVal = b[sortBy] ?? 0;
@@ -75,6 +103,9 @@ exports.getCaps = async (req, res) => {
   }
 };
 
+/**
+ * UPDATE DAILY TARGET
+ */
 exports.updateTarget = async (req, res) => {
   try {
     const { id } = req.params;
@@ -92,7 +123,58 @@ exports.updateTarget = async (req, res) => {
   }
 };
 
+/**
+ * EXPORT CAPS CSV
+ */
+exports.exportCaps = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
 
+    const caps = await Cap.find();
+
+    const start = startDate || getCurrentESTDate();
+    const end = endDate || start;
+    const days = getDaysBetween(start, end);
+
+    const rows = caps.map((cap) => {
+      const rangeData = cap.dailyCalls.filter(
+        (d) => d.date >= start && d.date <= end
+      );
+
+      const paidCalls = rangeData.reduce(
+        (sum, d) => sum + d.paidCalls,
+        0
+      );
+
+      const adjustedTarget = cap.target * days;
+
+      return {
+        Target: cap.target_name || cap.name,
+        Days: days,
+        DailyTarget: cap.target,
+        RangeTarget: adjustedTarget,
+        PaidCalls: paidCalls,
+        PercentComplete: calcPercent(paidCalls, adjustedTarget),
+      };
+    });
+
+    res.header("Content-Type", "text/csv");
+    res.attachment("caps_export.csv");
+
+    const csv = [
+      Object.keys(rows[0]).join(","),
+      ...rows.map((r) => Object.values(r).join(",")),
+    ].join("\n");
+
+    res.send(csv);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * PIXEL PROCESSING (UNCHANGED)
+ */
 exports.processPixelFire = async (req, res) => {
   try {
     const { target_id, target_name, status, paid, duration } = req.query;
