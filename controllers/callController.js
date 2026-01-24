@@ -6,6 +6,9 @@ const { success, error } = require("../utils/apiResponse");
 const logger = require("../utils/logger");
 const ExcelJS = require("exceljs");
 const { Transform, pipeline, Readable } = require("stream");
+const { promisify } = require("util");
+const streamPipeline = promisify(pipeline);
+const os = require("os");
 
 class StreamExportManager {
   constructor() {
@@ -51,11 +54,11 @@ class CallController {
       { header: "Time Stamp", key: "callTimestamp", width: 20 },
       { header: "Publisher", key: "publisherName", width: 15 },
       { header: "Caller ID", key: "callerId", width: 15 },
-      { header: "Transcript", key: "transcript", width: 20 },
       { header: "Disposition", key: "disposition", width: 15 },
       { header: "Sub Disposition", key: "sub_disposition", width: 15 },
       { header: "Duration (sec)", key: "durationSec", width: 12 },
       { header: "Campaign Name", key: "campaignName", width: 20 },
+      { header: "Transcript", key: "transcript", width: 20 },
       { header: "Reason", key: "reason", width: 20 },
       { header: "Summary", key: "summary", width: 30 },
       { header: "Target", key: "target_name", width: 15 },
@@ -116,6 +119,7 @@ class CallController {
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
 
+      // Create cursor with optimized settings for large datasets
       cursor = await CallRecord.find(finalQuery)
         .select(this.recordsService.defaultProjection)
         .sort(queryBuilder.options.sort || { callTimestamp: -1 })
