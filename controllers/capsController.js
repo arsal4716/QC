@@ -1,8 +1,6 @@
 const Cap = require("../models/Caps");
 
-/**
- * Get current EST date (YYYY-MM-DD)
- */
+
 const getCurrentESTDate = () => {
   const now = new Date();
   const estOffset = -5 * 60;
@@ -12,17 +10,13 @@ const getCurrentESTDate = () => {
   return estTime.toISOString().split("T")[0];
 };
 
-/**
- * Calculate percent safely
- */
+
 const calcPercent = (paid, target) => {
   if (!target || target === 0) return 0;
   return Number(((paid / target) * 100).toFixed(2));
 };
 
-/**
- * Calculate inclusive day range
- */
+
 const getDaysBetween = (start, end) => {
   const s = new Date(start);
   const e = new Date(end);
@@ -32,9 +26,7 @@ const getDaysBetween = (start, end) => {
   );
 };
 
-/**
- * GET CAPS (DATE-RANGE AWARE TARGET)
- */
+
 exports.getCaps = async (req, res) => {
   try {
     const {
@@ -65,7 +57,6 @@ exports.getCaps = async (req, res) => {
         0
       );
 
-      // ✅ DAILY TARGET × NUMBER OF DAYS
       const adjustedTarget = cap.target * days;
       const percentComplete = calcPercent(paidCalls, adjustedTarget);
 
@@ -73,17 +64,17 @@ exports.getCaps = async (req, res) => {
         _id: cap._id,
         name: cap.name,
         target_name: cap.target_name,
-        baseTarget: cap.target,       // daily target
-        target: adjustedTarget,       // range target
+        baseTarget: cap.target,      
+        target: adjustedTarget,       
         days,
         completedCalls,
         paidCalls,
         percentComplete,
+        enabled: cap.enabled,
         updatedAt: cap.updatedAt,
       };
     });
 
-    // Sorting
     transformed.sort((a, b) => {
       const aVal = a[sortBy] ?? 0;
       const bVal = b[sortBy] ?? 0;
@@ -103,19 +94,16 @@ exports.getCaps = async (req, res) => {
   }
 };
 
-/**
- * UPDATE DAILY TARGET
- */
 exports.updateTarget = async (req, res) => {
   try {
     const { id } = req.params;
-    const { target } = req.body;
+    const { target, enabled } = req.body;
 
-    const updated = await Cap.findByIdAndUpdate(
-      id,
-      { target },
-      { new: true }
-    );
+    const updateData = {};
+    if (target !== undefined) updateData.target = target;
+    if (enabled !== undefined) updateData.enabled = enabled; 
+
+    const updated = await Cap.findByIdAndUpdate(id, updateData, { new: true });
 
     res.json({ success: true, data: updated });
   } catch (err) {
@@ -123,9 +111,7 @@ exports.updateTarget = async (req, res) => {
   }
 };
 
-/**
- * EXPORT CAPS CSV
- */
+
 exports.exportCaps = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
@@ -172,9 +158,6 @@ exports.exportCaps = async (req, res) => {
   }
 };
 
-/**
- * PIXEL PROCESSING (UNCHANGED)
- */
 exports.processPixelFire = async (req, res) => {
   try {
     const { target_id, target_name, status, paid, duration } = req.query;

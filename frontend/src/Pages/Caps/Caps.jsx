@@ -47,7 +47,7 @@ const Caps = () => {
     if (!data?.data) return [];
 
     return data.data.filter((c) =>
-      (c.target_name || c.name).toLowerCase().includes(search.toLowerCase())
+      (c.target_name || c.name).toLowerCase().includes(search.toLowerCase()),
     );
   }, [data, search]);
 
@@ -92,17 +92,16 @@ const Caps = () => {
           onChange={(e) => setEndDate(e.target.value)}
         />
         <button
-        className="btn btn-sm btn-success"
-        onClick={() =>
-          window.open(
-            `/api/caps/export?startDate=${startDate}&endDate=${endDate}`,
-          )
-        }
-      >
-        CSV
-      </button>
+          className="btn btn-sm btn-success"
+          onClick={() =>
+            window.open(
+              `/api/caps/export?startDate=${startDate}&endDate=${endDate}`,
+            )
+          }
+        >
+          CSV
+        </button>
       </div>
-      
 
       <table className="table table-sm table-hover">
         <thead className="table-dark">
@@ -114,7 +113,6 @@ const Caps = () => {
             >
               Target {sortBy === "target_name" && (order === "asc" ? "↑" : "↓")}
             </th>
-
             <th
               onClick={() => handleSort("completedCalls")}
               style={{ cursor: "pointer" }}
@@ -122,16 +120,14 @@ const Caps = () => {
               Completed{" "}
               {sortBy === "completedCalls" && (order === "asc" ? "↑" : "↓")}
             </th>
-
             <th
               onClick={() => handleSort("paidCalls")}
               style={{ cursor: "pointer" }}
             >
               Paid {sortBy === "paidCalls" && (order === "asc" ? "↑" : "↓")}
             </th>
-
             <th>Target</th>
-
+            <th>Status</th>
             <th
               onClick={() => handleSort("percentComplete")}
               style={{ cursor: "pointer" }}
@@ -156,6 +152,37 @@ const Caps = () => {
                   defaultValue={cap.target}
                   onBlur={(e) => saveTarget(cap._id, e.target.value)}
                 />
+              </td>
+              <td>
+                <select
+                  className="form-select form-select-sm"
+                  style={{
+                    width: 100,
+                    color: cap.enabled ? "green" : "red", // text color
+                    fontWeight: "bold",
+                  }}
+                  value={cap.enabled ? "active" : "paused"}
+                  onChange={async (e) => {
+                    const newStatus = e.target.value === "active";
+                    try {
+                      await updateTarget({
+                        id: cap._id,
+                        enabled: newStatus,
+                      }).unwrap();
+                      toast.success(
+                        `Target ${cap.target_name} ${
+                          newStatus ? "activated" : "paused"
+                        }`,
+                      );
+                      refetch();
+                    } catch {
+                      toast.error("Failed to update target status");
+                    }
+                  }}
+                >
+                  <option value="active">Active</option>
+                  <option value="paused">Paused</option>
+                </select>
               </td>
               <td>
                 <span className="badge bg-info">{cap.percentComplete}%</span>

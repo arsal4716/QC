@@ -16,6 +16,7 @@ const capSchema = new mongoose.Schema({
   totalCompletedCalls: { type: Number, default: 0 },
   totalPaidCalls: { type: Number, default: 0 },
 
+  enabled: { type: Boolean, default: true },
   updatedAt: { type: Date, default: Date.now }
 });
 
