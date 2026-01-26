@@ -29,6 +29,7 @@ class RecordsService {
       transcript: 1,
       status: 1,
       durationSec: 1,
+      "qc.income": 1,
     };
 
     this.detailProjection = {
@@ -40,6 +41,7 @@ class RecordsService {
       "qc.key_moments": 1,
       "qc.objections_raised": 1,
       "qc.objections_overcome": 1,
+      "qc.income": 1,
     };
   }
 
