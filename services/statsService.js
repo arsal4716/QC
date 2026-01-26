@@ -20,6 +20,7 @@ class AdvancedStatsService {
       "subsidy/incentivised",
       "Language Barrier",
       "Misdialed",
+      "income"
     ];
   }
 

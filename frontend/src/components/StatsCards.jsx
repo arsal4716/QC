@@ -69,6 +69,7 @@ const statsConfig = [
   { key: "subsidy/incentivised", label: "Subsidy" },
   { key: "Language Barrier", label: "Language Barrier" },
   { key: "Misdialed", label: "Misdialed" },
+  { key: "income", label: "income" },
   { key: "RejectedUnknown", label: "Rejected / Unknown", flagKey: "flagRejectedUnknown" },
   { key: "RedNoConnect", label: "Red No Connects", flagKey: "flagRedNoConnect" },
 ];

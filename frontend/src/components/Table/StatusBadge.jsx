@@ -15,6 +15,7 @@ const statusConfig = {
   "subsidy/incentivised": { variant: "success", icon: "bi-award" },
   "Language Barrier": { variant: "warning", icon: "bi-translate" },
   Misdialed: { variant: "secondary", icon: "bi-telephone-outbound" },
+  income: { variant: "secondary", icon: "bi-telephone-outbound" },
   default: { variant: "light", icon: "bi-question-circle" },
 };
 const textColorMap = {

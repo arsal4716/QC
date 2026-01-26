@@ -15,6 +15,14 @@ const QCSchema = new Schema(
     sub_disposition: { type: String, trim: true, index: true },
     reason: { type: String, trim: true },
     summary: { type: String, trim: true },
+     income: {
+      value: { type: Number },               
+      frequency: {
+        type: String,
+        enum: ["yearly", "monthly", "weekly", "hourly", "unknown"],
+        default: "unknown",
+      },
+    },
     sentiment: {
       type: String,
       enum: ["Positive", "Neutral", "Negative"],

@@ -17,6 +17,7 @@ const DispositionFilter = ({ value = [], onChange, onClose }) => {
     { value: "subsidy/incentivised", label: "Subsidy", color: "info" },
     { value: "Language Barrier", label: "Language Barrier", color: "secondary" },
     { value: "Misdialed", label: "Misdialed", color: "secondary" },
+    { value: "income", label: "Income", color: "secondary" },
   ];
 
   const toggleDisposition = (disposition) => {
