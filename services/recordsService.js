@@ -10,7 +10,7 @@ class RecordsService {
       callTimestamp: 1,
       campaignName: 1,
       systemBuyerId: 1,
-      "ringbaRaw.target_name": 1,   
+      "ringbaRaw.target_name": 1,
       publisherName: 1,
       callerId: 1,
       recordingUrl: 1,
@@ -113,40 +113,40 @@ class RecordsService {
     }
   }
 
-async exportRecords(filters = {}) {
-  try {
-    const queryBuilder = QueryBuilder.forModel(CallRecord)
-      .setDateRange(filters)
-      .setCampaignFilter(filters.campaign)
-      .setTargetFilter(filters.target)
-      .setPublisherFilter(filters.publisher)
-      .setBuyerFilter(filters.buyer)
-      .setDispositionFilter(filters.disposition, "qc.disposition")
-      .setStatusFilter(filters.status)
-      .setSearchFilter(filters.search)
-      .setSort(filters.sortBy || "callTimestamp", filters.sortDir || "desc")
-      .disableCache(); 
+  async exportRecords(filters = {}) {
+    try {
+      const queryBuilder = QueryBuilder.forModel(CallRecord)
+        .setDateRange(filters)
+        .setCampaignFilter(filters.campaign)
+        .setTargetFilter(filters.target)
+        .setPublisherFilter(filters.publisher)
+        .setBuyerFilter(filters.buyer)
+        .setDispositionFilter(filters.disposition, "qc.disposition")
+        .setStatusFilter(filters.status)
+        .setSearchFilter(filters.search)
+        .setSort(filters.sortBy || "callTimestamp", filters.sortDir || "desc")
+        .disableCache();
 
-    const cursor = await CallRecord.find(queryBuilder._buildFinalQuery())
-      .select(this.defaultProjection)
-      .sort(queryBuilder.options.sort || { callTimestamp: -1 })
-      .lean()
-      .cursor({ batchSize: 1000 });
+      const cursor = await CallRecord.find(queryBuilder._buildFinalQuery())
+        .select(this.defaultProjection)
+        .sort(queryBuilder.options.sort || { callTimestamp: -1 })
+        .lean()
+        .cursor({ batchSize: 1000 });
 
-    const records = [];
-    for await (const doc of cursor) {
-      records.push(this._transformRecord(doc));
-      if (records.length % 5000 === 0) {
-        logger.info(`Export progress: ${records.length} records processed`);
+      const records = [];
+      for await (const doc of cursor) {
+        records.push(this._transformRecord(doc));
+        if (records.length % 5000 === 0) {
+          logger.info(`Export progress: ${records.length} records processed`);
+        }
       }
-    }
 
-    return records;
-  } catch (error) {
-    logger.error("Export records failed:", error);
-    throw new Error(`Export failed: ${error.message}`);
+      return records;
+    } catch (error) {
+      logger.error("Export records failed:", error);
+      throw new Error(`Export failed: ${error.message}`);
+    }
   }
-}
 
   async getFieldValues(field, filters = {}) {
     const validFields = [
@@ -276,9 +276,15 @@ async exportRecords(filters = {}) {
     const summary = record.qc?.summary || record.summary || "";
     const sentiment = record.qc?.sentiment || record.sentiment || "";
 
+    let incomeDisplay = null;
+    if (record.qc?.income?.value != null) {
+      const freq = record.qc.income.frequency || "unknown";
+      incomeDisplay = `${record.qc.income.value.toLocaleString()} / ${freq}`;
+    }
+
     return {
       ...record,
-    target_name: record.target_name || record.ringbaRaw?.target_name || null, 
+      target_name: record.target_name || record.ringbaRaw?.target_name || null,
       durationSec:
         record.ringbaRaw?.duration_seconds || record.durationSec || 0,
       callerNumber: record.ringbaRaw?.caller_number || record.callerId,
@@ -287,7 +293,7 @@ async exportRecords(filters = {}) {
       reason,
       summary,
       sentiment,
-      income: record.qc?.income?.value || record.qc?.income || null,
+      income: incomeDisplay,
     };
   }
 

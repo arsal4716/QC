@@ -20,7 +20,7 @@ class AdvancedStatsService {
       "subsidy/incentivised",
       "Language Barrier",
       "Misdialed",
-      "income"
+      "income",
     ];
   }
 
@@ -31,8 +31,8 @@ class AdvancedStatsService {
     // sanitize filters
     filters = Object.fromEntries(
       Object.entries(filters).filter(
-        ([, v]) => v !== null && v !== "null" && v !== ""
-      )
+        ([, v]) => v !== null && v !== "null" && v !== "",
+      ),
     );
 
     const cacheKey = `stats:${JSON.stringify(filters)}`;
@@ -56,18 +56,30 @@ class AdvancedStatsService {
 
       // attach group-level flags
       const flaggedByBuyer = totalCounts.byBuyer.map((g) =>
-        this._generateFlagsForGroup(g)
+        this._generateFlagsForGroup(g),
       );
       const flaggedByCampaign = totalCounts.byCampaign.map((g) =>
-        this._generateFlagsForGroup(g)
+        this._generateFlagsForGroup(g),
       );
       const flaggedByTarget = totalCounts.byTarget.map((g) =>
-        this._generateFlagsForGroup(g)
+        this._generateFlagsForGroup(g),
       );
       const flaggedByPublisher = totalCounts.byPublisher.map((g) =>
-        this._generateFlagsForGroup(g)
+        this._generateFlagsForGroup(g),
       );
-
+      const incomeStats = await CallRecord.aggregate([
+        { $match: matchStage },
+        {
+          $group: {
+            _id: null,
+            count: {
+              $sum: { $cond: [{ $ifNull: ["$qc.income.value", false] }, 1, 0] },
+            },
+            avgIncome: { $avg: "$qc.income.value" },
+            totalIncome: { $sum: "$qc.income.value" },
+          },
+        },
+      ]);
       const result = {
         ...totalCounts,
         dispositions: dispositionStats,
@@ -79,6 +91,7 @@ class AdvancedStatsService {
         byPublisher: flaggedByPublisher,
         summary: this._generateSummary(totalCounts, dispositionStats),
         generatedAt: new Date().toISOString(),
+        income: incomeStats,
       };
 
       await redis.setex(cacheKey, 120, JSON.stringify(result));
@@ -331,7 +344,7 @@ class AdvancedStatsService {
         { $match: matchStage },
         { $group: { _id: null, total: { $sum: "$durationSec" } } },
       ],
-      { maxTimeMS: 15000, allowDiskUse: true }
+      { maxTimeMS: 15000, allowDiskUse: true },
     );
     return result[0]?.total || 0;
   }
@@ -342,7 +355,7 @@ class AdvancedStatsService {
         { $match: matchStage },
         { $group: { _id: null, average: { $avg: "$durationSec" } } },
       ],
-      { maxTimeMS: 15000, allowDiskUse: true }
+      { maxTimeMS: 15000, allowDiskUse: true },
     );
     return result[0]?.average || 0;
   }
@@ -351,12 +364,14 @@ class AdvancedStatsService {
    * Summary metrics
    */
   _generateSummary(totalCounts, dispositionStats) {
-    const sales =
-      dispositionStats.find((d) => d.disposition === "Sales") || { count: 0 };
-    const notInterested =
-      dispositionStats.find((d) => d.disposition === "Not Interested") || {
-        count: 0,
-      };
+    const sales = dispositionStats.find((d) => d.disposition === "Sales") || {
+      count: 0,
+    };
+    const notInterested = dispositionStats.find(
+      (d) => d.disposition === "Not Interested",
+    ) || {
+      count: 0,
+    };
 
     return {
       conversionRate:
@@ -369,7 +384,7 @@ class AdvancedStatsService {
           : 0,
       efficiencyScore: this._calculateEfficiencyScore(
         totalCounts,
-        dispositionStats
+        dispositionStats,
       ),
     };
   }
@@ -384,10 +399,15 @@ class AdvancedStatsService {
       );
     }, 0);
 
-    const negativeDispositions = ["Not Interested", "DNC", "Not Qualified"].reduce(
+    const negativeDispositions = [
+      "Not Interested",
+      "DNC",
+      "Not Qualified",
+    ].reduce(
       (sum, disp) =>
-        sum + (dispositionStats.find((d) => d.disposition === disp)?.count || 0),
-      0
+        sum +
+        (dispositionStats.find((d) => d.disposition === disp)?.count || 0),
+      0,
     );
 
     if (totalCounts.completedCalls === 0) return 0;
@@ -397,7 +417,7 @@ class AdvancedStatsService {
 
     return Math.max(
       0,
-      Math.min(100, positiveRatio * 80 - negativeRatio * 20 + sales * 0.5)
+      Math.min(100, positiveRatio * 80 - negativeRatio * 20 + sales * 0.5),
     );
   }
 
@@ -425,14 +445,17 @@ class AdvancedStatsService {
 
   async _getTrendStats(start, end) {
     const previousStart = new Date(
-      start.getTime() - (end.getTime() - start.getTime())
+      start.getTime() - (end.getTime() - start.getTime()),
     );
     const previousEnd = new Date(
-      end.getTime() - (end.getTime() - start.getTime())
+      end.getTime() - (end.getTime() - start.getTime()),
     );
 
     const [current, previous] = await Promise.all([
-      this.getStats({ startDate: start.toISOString(), endDate: end.toISOString() }),
+      this.getStats({
+        startDate: start.toISOString(),
+        endDate: end.toISOString(),
+      }),
       this.getStats({
         startDate: previousStart.toISOString(),
         endDate: previousEnd.toISOString(),
@@ -442,15 +465,15 @@ class AdvancedStatsService {
     return {
       callsChange: this._calculateChange(
         current.totalCalls || 0,
-        previous.totalCalls || 0
+        previous.totalCalls || 0,
       ),
       conversionChange: this._calculateChange(
         current.summary?.conversionRate || 0,
-        previous.summary?.conversionRate || 0
+        previous.summary?.conversionRate || 0,
       ),
       efficiencyChange: this._calculateChange(
         current.summary?.efficiencyScore || 0,
-        previous.summary?.efficiencyScore || 0
+        previous.summary?.efficiencyScore || 0,
       ),
     };
   }
