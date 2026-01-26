@@ -80,6 +80,13 @@ export const createDefaultColumns = () => [
     truncate: true,
   },
   {
+    key: "income",
+    label: "income",
+    visible: true,
+    width: 200,
+    truncate: true,
+  },
+  {
     key: "target_name",
     label: "Target",
     visible: true,
