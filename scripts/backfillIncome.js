@@ -1,44 +1,48 @@
-// scripts/backfillIncome.js
+require("dotenv").config();
 const mongoose = require("mongoose");
 const CallRecord = require("../models/CallRecord");
-const { extractIncome } = require("../services/incomeExtractor");
+const { analyzeDisposition } = require("../services/openaiService");
 
-async function backfillIncome(batchSize = 50) {
+async function backfillIncome() {
+  await mongoose.connect(process.env.MONGO_URI);
+
   const cursor = CallRecord.find({
-    transcript: { $exists: true, $ne: "" },
+    labeledTranscript: { $exists: true, $ne: "" },
     callStatus: "completed",
     $or: [
       { "qc.income": { $exists: false } },
-      { "qc.income.value": { $exists: false } },
-    ],
+      { "qc.income": null }
+    ]
   }).cursor();
 
   let processed = 0;
 
   for await (const record of cursor) {
     try {
-      const income = await extractIncome(
-        record.labeledTranscript || record.transcript
+      const qc = await analyzeDisposition(
+        record.labeledTranscript,
+        record.campaignName
       );
 
-      if (!income) continue;
+      if (!qc?.income) continue;
 
       await CallRecord.updateOne(
         { _id: record._id },
-        { $set: { "qc.income": income } }
+        { $set: { "qc.income": qc.income } }
       );
 
       processed++;
-      if (processed % batchSize === 0) {
+      if (processed % 20 === 0) {
         console.log(`Processed ${processed}`);
-        await new Promise((r) => setTimeout(r, 1000)); // rate limit
+        await new Promise(r => setTimeout(r, 1000)); 
       }
     } catch (err) {
       console.error(`Failed for ${record._id}`, err.message);
     }
   }
 
-  console.log("Backfill complete");
+  console.log("✅ Income backfill completed");
+  process.exit(0);
 }
 
 backfillIncome();

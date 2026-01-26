@@ -145,6 +145,10 @@ You must output a **single JSON object** exactly in this structure:
   "key_moments": ["<Critical turning point 1>", "<Critical turning point 2>"],
   "objections_raised": ["<Objection 1>", "<Objection 2>"],
   "objections_overcome": "<Yes/No/Partial>"
+  "income": {
+    "value": number,
+    "frequency": "yearly|monthly|weekly|hourly"
+  } | null
 }
 ```
 

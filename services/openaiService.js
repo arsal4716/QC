@@ -56,6 +56,7 @@ async function analyzeDisposition(labeledTranscript, campaignName) {
     key_moments: parsed.key_moments || [],
     objections_raised: parsed.objections_raised || [],
     objections_overcome: parsed.objections_overcome || "No",
+     income: parsed.income || null,
   };
 }
 
