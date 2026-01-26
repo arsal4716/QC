@@ -1,10 +1,8 @@
 require("dotenv").config();
-const mongoose = require("mongoose");
 const CallRecord = require("../models/CallRecord");
 const { analyzeDisposition } = require("../services/openaiService");
 
 async function backfillIncome() {
-  await mongoose.connect(process.env.MONGO_URI);
 
   const cursor = CallRecord.find({
     labeledTranscript: { $exists: true, $ne: "" },
@@ -41,7 +39,7 @@ async function backfillIncome() {
     }
   }
 
-  console.log("✅ Income backfill completed");
+  console.log("Income backfill completed");
   process.exit(0);
 }
 

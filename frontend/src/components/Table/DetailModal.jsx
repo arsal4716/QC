@@ -65,7 +65,7 @@ const DetailModal = () => {
                     {renderField("Time", record.callTimestamp, "date")}
                     {renderField("Caller ID", record.callerId)}
                     {renderField("Campaign", record.campaignName)}
-                    {renderField("Publisher", record.systemName)}
+                    {renderField("Target", record.target_name)}
                     {renderField("Duration", `${record.durationSec} seconds`)}
                   </div>
 
