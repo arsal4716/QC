@@ -158,7 +158,7 @@ const Caps = () => {
                   className="form-select form-select-sm"
                   style={{
                     width: 100,
-                    color: cap.enabled ? "green" : "red", // text color
+                    color: cap.enabled ? "green" : "red",
                     fontWeight: "bold",
                   }}
                   value={cap.enabled ? "active" : "paused"}

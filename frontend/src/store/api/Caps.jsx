@@ -24,10 +24,10 @@ export const capsApi = baseApi.injectEndpoints({
     }),
 
     updateTarget: builder.mutation({
-      query: ({ id, target }) => ({
+      query: ({ id, target,enabled  }) => ({
         url: `/api/caps/target/${id}`,
         method: "PATCH",
-        body: { target },
+        body: { target,enabled  },
       }),
       invalidatesTags: ["Caps"],
     }),
