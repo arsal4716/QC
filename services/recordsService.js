@@ -285,6 +285,7 @@ async exportRecords(filters = {}) {
       reason,
       summary,
       sentiment,
+      income: record.qc?.income?.value || record.qc?.income || null,
     };
   }
 

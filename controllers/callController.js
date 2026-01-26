@@ -65,6 +65,7 @@ class CallController {
       { header: "Buyer ID", key: "systemBuyerId", width: 15 },
       { header: "Recording Link", key: "recordingUrl", width: 30 },
       { header: "System Call ID", key: "systemCallId", width: 20 },
+      { header: "income", key: "income", width: 20 },
     ];
   }
 
