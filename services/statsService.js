@@ -47,6 +47,7 @@ class AdvancedStatsService {
         .setPublisherFilter(filters.publisher)
         .setTargetFilter(filters.target)
         .setBuyerFilter(filters.buyer);
+      const matchStage = queryBuilder._buildFinalQuery();
 
       const [totalCounts, dispositionStats] = await Promise.all([
         this._getTotalCounts(queryBuilder),
