@@ -51,7 +51,6 @@ class AdvancedStatsService {
       const [totalCounts, dispositionStats, hourlyStats] = await Promise.all([
         this._getTotalCounts(queryBuilder),
         this._getDispositionStats(queryBuilder),
-        this._getHourlyStats(queryBuilder),
       ]);
 
       // attach group-level flags
@@ -122,8 +121,6 @@ class AdvancedStatsService {
     ] = await Promise.all([
       CallRecord.countDocuments(matchStage),
       CallRecord.countDocuments({ ...matchStage, status: "completed" }),
-      this._getTotalDuration(matchStage),
-      this._getAverageDuration(matchStage),
       this._getDispositionStatsByGroup(queryBuilder, "buyer"),
       this._getDispositionStatsByGroup(queryBuilder, "campaign"),
       this._getDispositionStatsByGroup(queryBuilder, "target"),
@@ -302,62 +299,6 @@ class AdvancedStatsService {
     ];
 
     return CallRecord.aggregate(pipeline, { allowDiskUse: true });
-  }
-
-  /**
-   * Hourly breakdown stats
-   */
-  async _getHourlyStats(queryBuilder) {
-    const matchStage = queryBuilder._buildFinalQuery();
-
-    const pipeline = [
-      { $match: matchStage },
-      {
-        $group: {
-          _id: { $hour: "$callTimestamp" },
-          count: { $sum: 1 },
-          totalDuration: { $sum: "$durationSec" },
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          hour: "$_id",
-          count: 1,
-          avgDuration: {
-            $round: [{ $divide: ["$totalDuration", "$count"] }, 2],
-          },
-        },
-      },
-      { $sort: { hour: 1 } },
-    ];
-
-    return CallRecord.aggregate(pipeline, {
-      maxTimeMS: 15000,
-      allowDiskUse: true,
-    });
-  }
-
-  async _getTotalDuration(matchStage) {
-    const result = await CallRecord.aggregate(
-      [
-        { $match: matchStage },
-        { $group: { _id: null, total: { $sum: "$durationSec" } } },
-      ],
-      { maxTimeMS: 15000, allowDiskUse: true },
-    );
-    return result[0]?.total || 0;
-  }
-
-  async _getAverageDuration(matchStage) {
-    const result = await CallRecord.aggregate(
-      [
-        { $match: matchStage },
-        { $group: { _id: null, average: { $avg: "$durationSec" } } },
-      ],
-      { maxTimeMS: 15000, allowDiskUse: true },
-    );
-    return result[0]?.average || 0;
   }
 
   /**

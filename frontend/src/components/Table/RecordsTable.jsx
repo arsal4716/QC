@@ -5,7 +5,7 @@ import { setRecordDetail } from "../../store/slices/modalSlice";
 import { setFilters } from "../../store/slices/filtersSlice";
 import { useDebounce } from "../../hooks/useDebounce";
 import VirtualizedTable from "./VirtualizedTable";
-import { createDefaultColumns } from "../../contexts/ColumnsContext";
+import { useColumns } from "../../contexts/ColumnsContext";
 import TableFilter from "../Filters/TableFilter";
 import { useQueryParams } from "../../hooks/useQueryParams";
 import { useExportManager } from "../../hooks/useExportManager";
@@ -13,56 +13,78 @@ import { useExportManager } from "../../hooks/useExportManager";
 const RecordsTable = memo(({ refreshKey }) => {
   const dispatch = useDispatch();
   const filters = useSelector((state) => state.filters);
-  const { exportState, exportRecords, downloadBlob, resetExportState } = useExportManager();
-  
+  const { exportState, exportRecords, downloadBlob, resetExportState } =
+    useExportManager();
+
   const searchValue = filters.search || "";
   const debouncedSearch = useDebounce(searchValue, 300);
-  const columns = useMemo(() => createDefaultColumns(), []);
+  const { columns } = useColumns();
   const queryParams = useQueryParams();
 
-  const handleExport = useCallback(async (format) => {
-    try {
-      const blob = await exportRecords({ ...queryParams, fmt: format });
-      downloadBlob(blob, format);
-      setTimeout(() => {
-        resetExportState();
-      }, 3000);
-    } catch (err) {
-      console.error("Export failed", err);
-    }
-  }, [exportRecords, downloadBlob, resetExportState, queryParams]);
+  const handleExport = useCallback(
+    async (format) => {
+      try {
+        const blob = await exportRecords({ ...queryParams, fmt: format });
+        downloadBlob(blob, format);
+        setTimeout(() => {
+          resetExportState();
+        }, 3000);
+      } catch (err) {
+        console.error("Export failed", err);
+      }
+    },
+    [exportRecords, downloadBlob, resetExportState, queryParams],
+  );
 
   const handleExportProgressHide = useCallback(() => {
     resetExportState();
   }, [resetExportState]);
 
-  const handleRowClick = useCallback((record) => {
-    if (record) dispatch(setRecordDetail(record));
-  }, [dispatch]);
+  const handleRowClick = useCallback(
+    (record) => {
+      if (record) dispatch(setRecordDetail(record));
+    },
+    [dispatch],
+  );
 
-  const handleSort = useCallback((sortBy, sortDir) => {
-    dispatch(setFilters({ sortBy, sortDir, page: 1 }));
-  }, [dispatch]);
+  const handleSort = useCallback(
+    (sortBy, sortDir) => {
+      dispatch(setFilters({ sortBy, sortDir, page: 1 }));
+    },
+    [dispatch],
+  );
 
-  const handlePageChange = useCallback((page) => {
-    dispatch(setFilters({ page }));
-  }, [dispatch]);
+  const handlePageChange = useCallback(
+    (page) => {
+      dispatch(setFilters({ page }));
+    },
+    [dispatch],
+  );
 
-  const handleSearch = useCallback((searchTerm) => {
-    dispatch(setFilters({ search: searchTerm, page: 1 }));
-  }, [dispatch]);
+  const handleSearch = useCallback(
+    (searchTerm) => {
+      dispatch(setFilters({ search: searchTerm, page: 1 }));
+    },
+    [dispatch],
+  );
 
-  const handleDispositionChange = useCallback((newDispositions) => {
-    dispatch(setFilters({ disposition: newDispositions, page: 1 }));
-  }, [dispatch]);
+  const handleDispositionChange = useCallback(
+    (newDispositions) => {
+      dispatch(setFilters({ disposition: newDispositions, page: 1 }));
+    },
+    [dispatch],
+  );
 
-  const handleStatusChange = useCallback((newStatuses) => {
-    dispatch(setFilters({ status: newStatuses, page: 1 }));
-  }, [dispatch]);
+  const handleStatusChange = useCallback(
+    (newStatuses) => {
+      dispatch(setFilters({ status: newStatuses, page: 1 }));
+    },
+    [dispatch],
+  );
 
   const { autoRefresh, refreshInterval } = useSelector((s) => s.ui) || {};
   const pollingInterval = autoRefresh ? refreshInterval : 0;
-  
+
   const {
     data: recordsData,
     error,
@@ -87,15 +109,15 @@ const RecordsTable = memo(({ refreshKey }) => {
   }
 
   return (
-    <div 
-      className="card" 
-      style={{ 
-        backgroundColor: "#17233d", 
-        overflow: "visible", // Changed from "hidden" to "visible"
-        minHeight: "500px", // Ensure minimum height
+    <div
+      className="card"
+      style={{
+        backgroundColor: "#17233d",
+        overflow: "visible", 
+        minHeight: "500px", 
         display: "flex",
         flexDirection: "column",
-        position: "relative" // Important for dropdown positioning
+        position: "relative", 
       }}
     >
       <TableFilter
@@ -110,14 +132,16 @@ const RecordsTable = memo(({ refreshKey }) => {
         exportState={exportState}
         onExportProgressHide={handleExportProgressHide}
       />
-      
+
       {/* Table Container with proper spacing */}
-      <div style={{ 
-        flex: 1, 
-        minHeight: "300px",
-        position: "relative",
-        zIndex: 1 // Lower z-index than dropdown
-      }}>
+      <div
+        style={{
+          flex: 1,
+          minHeight: "300px",
+          position: "relative",
+          zIndex: 1, 
+        }}
+      >
         <VirtualizedTable
           data={transformedData}
           columns={columns}

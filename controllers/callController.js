@@ -42,7 +42,7 @@ class CallController {
     this.recordsService = AdvancedRecordsService;
     this.exportManager = new StreamExportManager();
     this.exportColumns = this._getExportColumns();
-        Object.getOwnPropertyNames(CallController.prototype)
+    Object.getOwnPropertyNames(CallController.prototype)
       .filter(method => method !== 'constructor')
       .forEach(method => {
         this[method] = this[method].bind(this);
@@ -72,13 +72,13 @@ class CallController {
   async exportRecords(req, res) {
     let cursor = null;
     let exportStartTime = Date.now();
-    
+
     try {
       const filters = { ...req.query };
       const format = (filters.fmt || 'csv').toLowerCase();
-      
-      logger.info("Starting bulk export", { 
-        format, 
+
+      logger.info("Starting bulk export", {
+        format,
         filters: Object.keys(filters).filter(k => filters[k]),
         timestamp: new Date().toISOString()
       });
@@ -105,16 +105,16 @@ class CallController {
       const finalQuery = queryBuilder._buildFinalQuery();
       const estimatedCount = await CallRecord.countDocuments(finalQuery)
         .maxTimeMS(10000)
-        .catch(() => 0); 
+        .catch(() => 0);
 
       logger.info(`Export estimated records: ${estimatedCount.toLocaleString()}`);
 
-      res.setHeader('Content-Type', 
-        format === 'xlsx' 
-          ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      res.setHeader('Content-Type',
+        format === 'xlsx'
+          ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
           : 'text/csv; charset=utf-8'
       );
-      res.setHeader('Content-Disposition', 
+      res.setHeader('Content-Disposition',
         `attachment; filename="call_records_${Date.now()}.${format}"`
       );
       res.setHeader('Cache-Control', 'no-cache');
@@ -180,9 +180,9 @@ class CallController {
         try {
           const transformed = this.recordsService._transformRecord(record);
           const csvRow = this._convertToCSVRow(transformed);
-          
+
           processedCount++;
-                    const now = Date.now();
+          const now = Date.now();
           if (processedCount % 10000 === 0 || now - lastProgressLog > 30000) {
             logger.info(`CSV export progress: ${processedCount.toLocaleString()} records`);
             lastProgressLog = now;
@@ -215,14 +215,14 @@ class CallController {
             return;
           }
           const csvRows = batch.map(processRecord).filter(row => row !== '');
-          
+
           if (csvRows.length > 0) {
             if (isFirstChunk) {
               const headers = this.exportColumns.map(col => col.header);
               res.write(headers.join(',') + '\n');
               isFirstChunk = false;
             }
-            
+
             res.write(csvRows.join('\n') + '\n');
           }
           setImmediate(processBatch);
@@ -239,8 +239,8 @@ class CallController {
       processBatch().catch(reject);
 
       res.on('close', () => {
-        cursor.close().catch(() => {});
-        resolve(); 
+        cursor.close().catch(() => { });
+        resolve();
       });
     });
   }
@@ -253,7 +253,7 @@ class CallController {
     });
 
     const worksheet = workbook.addWorksheet('Call Records');
-        worksheet.columns = this.exportColumns;
+    worksheet.columns = this.exportColumns;
 
     try {
       let record;
@@ -263,12 +263,12 @@ class CallController {
         try {
           const transformed = this.recordsService._transformRecord(record);
           const rowData = this._convertToExcelRow(transformed);
-          
+
           if (isFirstRecord) {
             worksheet.addRow(Object.keys(rowData)).commit();
             isFirstRecord = false;
           }
-          
+
           worksheet.addRow(rowData).commit();
           processedCount++;
           if (processedCount % 5000 === 0) {
@@ -304,11 +304,11 @@ class CallController {
   _convertToCSVRow(record) {
     const fields = this.exportColumns.map(col => {
       let value = record[col.key];
-            if (col.key === 'disposition') value = record.qc?.disposition || record.disposition;
+      if (col.key === 'disposition') value = record.qc?.disposition || record.disposition;
       if (col.key === 'sub_disposition') value = record.qc?.sub_disposition || record.sub_disposition;
       if (col.key === 'reason') value = record.qc?.reason || record.reason;
       if (col.key === 'summary') value = record.qc?.summary || record.summary;
-      
+
       if (value == null) value = '';
       const stringValue = String(value).replace(/"/g, '""');
       return `"${stringValue}"`;
@@ -319,15 +319,15 @@ class CallController {
 
   _convertToExcelRow(record) {
     const row = {};
-    
+
     this.exportColumns.forEach(col => {
       let value = record[col.key];
-      
+
       if (col.key === 'disposition') value = record.qc?.disposition || record.disposition;
       if (col.key === 'sub_disposition') value = record.qc?.sub_disposition || record.sub_disposition;
       if (col.key === 'reason') value = record.qc?.reason || record.reason;
       if (col.key === 'summary') value = record.qc?.summary || record.summary;
-      
+
       row[col.header] = value != null ? value : '';
     });
 
@@ -417,8 +417,8 @@ class CallController {
         publisher,
         disposition,
         status,
-        target, 
-        buyer, 
+        target,
+        buyer,
       } = req.query;
 
       const filters = {
@@ -431,7 +431,7 @@ class CallController {
         status,
         search,
         target,
-        buyer, 
+        buyer,
       };
 
       const options = {
