@@ -48,7 +48,7 @@ class AdvancedStatsService {
         .setTargetFilter(filters.target)
         .setBuyerFilter(filters.buyer);
 
-      const [totalCounts, dispositionStats, hourlyStats] = await Promise.all([
+      const [totalCounts, dispositionStats] = await Promise.all([
         this._getTotalCounts(queryBuilder),
         this._getDispositionStats(queryBuilder),
       ]);
@@ -82,7 +82,6 @@ class AdvancedStatsService {
       const result = {
         ...totalCounts,
         dispositions: dispositionStats,
-        hourly: hourlyStats,
         flags: this._generateFlags(totalCounts, dispositionStats),
         byBuyer: flaggedByBuyer,
         byCampaign: flaggedByCampaign,
@@ -112,8 +111,6 @@ class AdvancedStatsService {
     const [
       totalCalls,
       completedCalls,
-      totalDuration,
-      avgDuration,
       byBuyer,
       byCampaign,
       byTarget,
@@ -131,8 +128,8 @@ class AdvancedStatsService {
       totalCalls,
       completedCalls,
       failedCalls: totalCalls - completedCalls,
-      totalDuration: Math.round(totalDuration),
-      avgDuration: Math.round(avgDuration),
+      totalDuration: 0,
+      avgDuration: 0,
       completionRate: totalCalls > 0 ? (completedCalls / totalCalls) * 100 : 0,
       byBuyer,
       byCampaign,
@@ -140,6 +137,7 @@ class AdvancedStatsService {
       byPublisher,
     };
   }
+
 
   /**
    * Disposition stats (global)
