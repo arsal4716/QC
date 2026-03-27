@@ -1,10 +1,11 @@
-const redis = require('redis');
-const logger = require('../utils/logger');
+const redis = require("redis");
+const logger = require("../utils/logger");
 
 class RedisClient {
   constructor() {
     this.client = null;
     this.isConnected = false;
+    this.isWritable = false;
   }
 
   async connect() {
@@ -12,46 +13,68 @@ class RedisClient {
 
     try {
       this.client = redis.createClient({
-        url: process.env.REDIS_URL || 'redis://localhost:6379',
+        url: process.env.REDIS_URL || "redis://localhost:6379",
         password: process.env.REDIS_PASSWORD,
         socket: {
           connectTimeout: 10000,
           reconnectStrategy: (retries) => {
             if (retries > 10) {
-              logger.error('Too many Redis reconnection attempts');
-              return new Error('Too many reconnection attempts');
+              logger.error("Too many Redis reconnection attempts");
+              return new Error("Too many reconnection attempts");
             }
             return Math.min(retries * 100, 3000);
-          }
-        }
+          },
+        },
       });
 
-      this.client.on('error', (err) => {
-        logger.error('Redis error:', err);
+      this.client.on("error", (err) => {
+        logger.error("Redis error:", err);
         this.isConnected = false;
+        this.isWritable = false;
       });
 
-      this.client.on('connect', () => {
-        logger.info('Redis connected');
+      this.client.on("connect", () => {
+        logger.info("Redis connected");
         this.isConnected = true;
       });
 
-      this.client.on('reconnecting', () => {
-        logger.info('Redis reconnecting...');
+      this.client.on("reconnecting", () => {
+        logger.info("Redis reconnecting...");
         this.isConnected = false;
+        this.isWritable = false;
       });
 
-      this.client.on('ready', () => {
-        logger.info('Redis ready');
+      this.client.on("ready", () => {
+        logger.info("Redis ready");
         this.isConnected = true;
       });
 
       await this.client.connect();
-      return this.client;
+      await this.assertWritable();
 
+      return this.client;
     } catch (error) {
-      logger.error('Redis connection failed:', error);
+      logger.error("Redis connection failed:", error);
       this.isConnected = false;
+      this.isWritable = false;
+      throw error;
+    }
+  }
+
+  async assertWritable() {
+    try {
+      const info = await this.client.info("replication");
+
+      if (/role:master/i.test(info)) {
+        this.isWritable = true;
+        logger.info("Redis node is writable (master/primary)");
+        return true;
+      }
+
+      this.isWritable = false;
+      throw new Error("Connected Redis node is read-only replica, not primary");
+    } catch (error) {
+      logger.error("Redis writable check failed:", error.message);
       throw error;
     }
   }
@@ -61,26 +84,26 @@ class RedisClient {
     try {
       return await this.client.get(key);
     } catch (error) {
-      logger.error('Redis get error:', error);
+      logger.error("Redis get error:", error);
       return null;
     }
   }
 
   async setex(key, ttl, value) {
-    if (!this.isConnected) return;
+    if (!this.isConnected || !this.isWritable) return;
     try {
       await this.client.setEx(key, ttl, value);
     } catch (error) {
-      logger.error('Redis setex error:', error);
+      logger.error("Redis setex error:", error);
     }
   }
 
   async del(...keys) {
-    if (!this.isConnected || keys.length === 0) return;
+    if (!this.isConnected || !this.isWritable || keys.length === 0) return;
     try {
       await this.client.del(keys);
     } catch (error) {
-      logger.error('Redis del error:', error);
+      logger.error("Redis del error:", error);
     }
   }
 
@@ -89,7 +112,7 @@ class RedisClient {
     try {
       return await this.client.keys(pattern);
     } catch (error) {
-      logger.error('Redis keys error:', error);
+      logger.error("Redis keys error:", error);
       return [];
     }
   }
@@ -98,12 +121,12 @@ class RedisClient {
     if (this.client) {
       await this.client.quit();
       this.isConnected = false;
+      this.isWritable = false;
     }
   }
 
-  // Pipeline for batch operations
   async pipeline(operations) {
-    if (!this.isConnected) return [];
+    if (!this.isConnected || !this.isWritable) return [];
     try {
       const pipeline = this.client.multi();
       operations.forEach(([operation, ...args]) => {
@@ -111,7 +134,7 @@ class RedisClient {
       });
       return await pipeline.exec();
     } catch (error) {
-      logger.error('Redis pipeline error:', error);
+      logger.error("Redis pipeline error:", error);
       return [];
     }
   }
