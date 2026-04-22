@@ -11,7 +11,7 @@ const SPEAKER_PROMPT = fs.readFileSync(
 const QC_PROMPT = fs.readFileSync(
   path.join(__dirname, "../prompts/qc_prompt.txt"),
   "utf8"
-);
+); 
 
 async function labelSpeakers(rawTranscript) {
   const r = await openai.chat.completions.create({
