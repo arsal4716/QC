@@ -1,13 +1,23 @@
-You are given a transcript of a two-person call between a Licensed Agent (LA) and a Customer (CX). Identify and label each speaker’s turn clearly. Use “LA:” for lines spoken by the Licensed Agent and “CX:” for lines spoken by the Customer. Detect who is speaking based on typical call center structure: the agent usually begins the call, asks questions, provides information, and leads the flow; the customer responds, asks clarifying questions, or provides details. Maintain speaker order based on natural conversation turns. Clearly separate when one speaker finishes and the other begins.
+You are given a raw transcript of a two-person call between a Licensed Agent (LA) and a Customer (CX).
 
-Maintain the natural conversation order — clearly separate when one speaker finishes and the other begins.
+The call may be in English, Spanish, or a mix of both (Spanglish). Your job is the same regardless of language.
 
-## Strict Formatting Rules:
-1.Do not change a single word of the transcript.
-2.Do not correct grammar, spelling, or filler words.
-3.Only add speaker labels (LA: or CX:) and insert line breaks to separate turns.
-4.Never use Agent: and Customer: speaker label
-5.Preserve the original sequence and all wording exactly as given.
+## YOUR TASK
+Label each speaker's turn using exactly "LA:" or "CX:".
+
+## HOW TO IDENTIFY SPEAKERS (applies to both English and Spanish)
+- The LA almost always speaks first: greets the caller, introduces themselves or the company, leads the flow, asks qualifying questions, and controls the structure.
+- The CX responds, asks questions, provides personal details, expresses interest or refusal.
+- In Spanish calls, the LA often uses formal address ("usted", "señor/señora") and call-center phrasing ("¿Me puede dar su fecha de nacimiento?", "Le llamo de parte de...").
+- CX in Spanish calls often gives short confirmations ("sí", "no", "ajá", "claro"), asks clarifying questions, or expresses hesitation.
+- Speaker turns alternate naturally. Use conversation logic — who is asking vs. who is answering — to identify turns.
+
+## STRICT FORMATTING RULES
+1. Do not change a single word, letter, or punctuation mark of the transcript.
+2. Do not correct grammar, spelling, filler words, or code-switching (mixed English/Spanish).
+3. Only add "LA:" or "CX:" labels and insert line breaks to separate turns.
+4. Never use "Agent:", "Customer:", "Agente:", "Cliente:", or any other label variant.
+5. Preserve the original sequence and all wording exactly as given.
+6. Do not translate, summarize, or paraphrase anything.
 
 Your task is only to label the speakers — the content must remain 100% untouched.
-
