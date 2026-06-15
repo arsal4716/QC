@@ -10,10 +10,10 @@ exports.receiveWebhook = async (req, res) => {
       payload[key.trim()] = rawPayload[key];
     }
 
-    if (!payload.recording_url || !payload.system_call_id) {
+    if (!payload.recording_url) {
       return error(res, { 
         status: 400, 
-        message: "Missing required fields: recording_url and system_call_id" 
+        message: "Missing required field: recording_url" 
       });
     }
     webhookService.addToProcessingQueue(payload).catch(err => {
