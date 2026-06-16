@@ -106,43 +106,18 @@ async processJob(job) {
 
     audioUrl = audioUrl.trim();
 
-    // ── CallGrid handling ─────────────────────────────
+    // ── CallGrid FIX ─────────────────────────────
+    // IMPORTANT: CallGrid URL is already the audio file
     if (audioUrl.includes("api.callgrid.com/api/recordings")) {
-      try {
-        const meta = await axios.get(audioUrl, {
-          headers: {
-            Authorization: `Bearer ${process.env.CALLGRID_TOKEN}`,
-          },
-          timeout: 15000,
-          maxRedirects: 5,
-          validateStatus: () => true,
-        });
-
-        const resolvedUrl = meta.data?.url;
-
-        if (
-          meta.status === 200 &&
-          typeof resolvedUrl === "string" &&
-          resolvedUrl.startsWith("http")
-        ) {
-          audioUrl = resolvedUrl;
-        } else {
-          console.warn("CallGrid resolution failed, using original URL", {
-            status: meta.status,
-            data: meta.data,
-            audioUrl,
-          });
-        }
-      } catch (err) {
-        console.warn("CallGrid fetch error, using original URL:", err.message);
-      }
+      console.log("CallGrid audio detected, using direct file URL");
     }
 
-    // ── IMPORTANT SAFETY CHECK ─────────────────────────
+    // ── Safety check ─────────────────────────────
     if (!audioUrl.startsWith("http")) {
-      throw new Error(`Invalid audio URL after resolution: ${audioUrl}`);
+      throw new Error(`Invalid audio URL: ${audioUrl}`);
     }
 
+    // ── Deepgram ─────────────────────────────
     const {
       transcript,
       durationSec,
@@ -183,6 +158,7 @@ async processJob(job) {
     });
 
     return { success: true };
+
   } catch (error) {
     const errorStatus = this.getErrorStatus(error);
 
