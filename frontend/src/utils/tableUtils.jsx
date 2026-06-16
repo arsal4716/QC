@@ -23,9 +23,23 @@ export const renderCell = (record, column) => {
   if (value === undefined || value === null || value === "") return "-";
 
   if (key === "recordingUrl") {
+    // Always play through the authenticated proxy so CallGrid's JSON-wrapped /
+    // redirected / signed S3 URLs resolve to actual audio (never raw JSON).
+    let href = value;
+    if (record._id) {
+      const base = process.env.REACT_APP_API_BASE || "";
+      let token = null;
+      try {
+        token = localStorage.getItem("token");
+      } catch (e) {
+        token = null;
+      }
+      const qs = token ? `?token=${encodeURIComponent(token)}` : "";
+      href = `${base}/api/calls/recording/${record._id}${qs}`;
+    }
     return (
       <a
-        href={value}
+        href={href}
         target="_blank"
         rel="noopener noreferrer"
         className="text-info"

@@ -1,24 +1,50 @@
 import React, { memo } from 'react';
 import PropTypes from 'prop-types';
-import { Loader2 } from 'lucide-react';
 
-const LoadingState = memo(({ 
-  message = "Loading data...", 
+const sizeMap = {
+  small: '1.5rem',
+  medium: '2.5rem',
+  large: '3.5rem',
+};
+
+const LoadingState = memo(({
+  message = "Loading data...",
   size = "medium",
-  fullScreen = false 
+  fullScreen = false,
 }) => {
-  const sizeClasses = {
-    small: 'w-4 h-4',
-    medium: 'w-8 h-8',
-    large: 'w-12 h-12'
-  };
+  const dim = sizeMap[size] || sizeMap.medium;
 
   return (
-    <div className={`loading-state ${fullScreen ? 'full-screen' : ''}`}>
-      <div className="loading-content">
-        <Loader2 className={`animate-spin ${sizeClasses[size]}`} />
-        <p className="loading-message">{message}</p>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '14px',
+        minHeight: fullScreen ? '100vh' : '320px',
+        width: '100%',
+        backgroundColor: '#17233d',
+        color: '#e9eefb',
+      }}
+    >
+      <div
+        className="spinner-border"
+        role="status"
+        style={{
+          width: dim,
+          height: dim,
+          color: '#4dabf7',
+          borderWidth: '0.28em',
+        }}
+      >
+        <span className="visually-hidden">Loading...</span>
       </div>
+      {message && (
+        <p style={{ margin: 0, fontSize: '0.95rem', color: '#cdd6f4' }}>
+          {message}
+        </p>
+      )}
     </div>
   );
 });

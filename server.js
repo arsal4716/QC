@@ -1,19 +1,30 @@
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
+const compression = require("compression");
 // const helmet = require("helmet");
 const morgan = require("morgan");
 const connectDB = require("./config/db.js")
+const redis = require("./config/redis");
 const path = require('path');
 const capsRoutes = require('./routes/capsRoutes');
 const { protect } = require('./middleware/authMiddleware');
 dotenv.config();
 connectDB();
 
+// Best-effort cache connection. Enables short-TTL caching of records/stats/
+// filter values, which makes repeated filter changes & pagination much faster.
+// Failure is non-fatal — the app degrades gracefully to direct queries.
+redis.connect().catch((err) =>
+  console.warn("Redis cache unavailable:", err.message)
+);
+
 const app = express();
+// gzip responses (notably CSV exports & JSON list payloads) for faster downloads
+app.use(compression());
 app.use(cors({
-  origin: "*",  
-  credentials: true,                 
+  origin: "*",
+  credentials: true,
 }));
 app.use(express.urlencoded({ extended: true }))
 app.use(express.json({ limit: "10mb" }));
