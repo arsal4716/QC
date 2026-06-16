@@ -82,93 +82,119 @@ class WebhookService {
     }
   }
 
-  async processJob(job) {
-    const { payload, callRecordId } = job.data;
+async processJob(job) {
+  const { payload, callRecordId } = job.data;
 
-    try {
-      const callData = this.transformPayload(payload);
+  try {
+    const callData = this.transformPayload(payload);
 
-      await CallRecord.findByIdAndUpdate(callRecordId, {
-        callStatus: "processing",
-        processingStartTime: new Date(),
-      });
+    await CallRecord.findByIdAndUpdate(callRecordId, {
+      callStatus: "processing",
+      processingStartTime: new Date(),
+    });
 
-      // ── Step 1: Transcribe ──────────────────────────────────────────────
-      await CallRecord.findByIdAndUpdate(callRecordId, {
-        callStatus: "transcribing",
-      });
-      let audioUrl = callData.recordingUrl;
+    // ── Step 1: Transcribe ─────────────────────────────
+    await CallRecord.findByIdAndUpdate(callRecordId, {
+      callStatus: "transcribing",
+    });
 
-      if (audioUrl.includes("api.callgrid.com/api/recordings")) {
+    let audioUrl = callData.recordingUrl;
+
+    if (!audioUrl || typeof audioUrl !== "string") {
+      throw new Error("Missing recording URL");
+    }
+
+    audioUrl = audioUrl.trim();
+
+    // ── CallGrid handling ─────────────────────────────
+    if (audioUrl.includes("api.callgrid.com/api/recordings")) {
+      try {
         const meta = await axios.get(audioUrl, {
           headers: {
             Authorization: `Bearer ${process.env.CALLGRID_TOKEN}`,
           },
+          timeout: 15000,
+          maxRedirects: 5,
           validateStatus: () => true,
         });
 
         const resolvedUrl = meta.data?.url;
 
-        if (meta.status === 200 && typeof resolvedUrl === "string" && resolvedUrl.startsWith("http")) {
+        if (
+          meta.status === 200 &&
+          typeof resolvedUrl === "string" &&
+          resolvedUrl.startsWith("http")
+        ) {
           audioUrl = resolvedUrl;
         } else {
-          console.warn("CallGrid did not return valid url, using original recordingUrl:", {
+          console.warn("CallGrid resolution failed, using original URL", {
             status: meta.status,
             data: meta.data,
-            original: audioUrl,
+            audioUrl,
           });
         }
+      } catch (err) {
+        console.warn("CallGrid fetch error, using original URL:", err.message);
       }
-      const {
-        transcript,
-        durationSec,
-        estCost,
-        detectedLanguage,
-        languageConfidence,
-      } = await transcribe(audioUrl);
-
-      // ── Step 2: Label Speakers ──────────────────────────────────────────
-      await CallRecord.findByIdAndUpdate(callRecordId, {
-        callStatus: "labeling_speakers",
-        transcript,
-        detectedLanguage,
-        languageConfidence,
-        cost: estCost || 0,
-      });
-
-      const labeledTranscript = await labelSpeakers(transcript);
-
-      // ── Step 3: Analyze Disposition ─────────────────────────────────────
-      await CallRecord.findByIdAndUpdate(callRecordId, {
-        callStatus: "analyzing_disposition",
-        labeledTranscript,
-      });
-
-      const qc = await analyzeDisposition(
-        labeledTranscript,
-        callData.campaignName,
-        detectedLanguage
-      );
-
-      // ── Step 4: Complete ────────────────────────────────────────────────
-      await CallRecord.findByIdAndUpdate(callRecordId, {
-        callStatus: "completed",
-        status: qc.disposition,
-        qc,
-        processingEndTime: new Date(),
-      });
-
-      return { success: true };
-    } catch (error) {
-      const errorStatus = this.getErrorStatus(error);
-      await CallRecord.findByIdAndUpdate(callRecordId, {
-        callStatus: errorStatus,
-        error: error.message,
-        processingEndTime: new Date(),
-      });
-      throw error;
     }
+
+    // ── IMPORTANT SAFETY CHECK ─────────────────────────
+    if (!audioUrl.startsWith("http")) {
+      throw new Error(`Invalid audio URL after resolution: ${audioUrl}`);
+    }
+
+    const {
+      transcript,
+      durationSec,
+      estCost,
+      detectedLanguage,
+      languageConfidence,
+    } = await transcribe(audioUrl);
+
+    // ── Step 2: Label Speakers ─────────────────────────
+    await CallRecord.findByIdAndUpdate(callRecordId, {
+      callStatus: "labeling_speakers",
+      transcript,
+      detectedLanguage,
+      languageConfidence,
+      cost: estCost || 0,
+    });
+
+    const labeledTranscript = await labelSpeakers(transcript);
+
+    // ── Step 3: Analyze Disposition ─────────────────────
+    await CallRecord.findByIdAndUpdate(callRecordId, {
+      callStatus: "analyzing_disposition",
+      labeledTranscript,
+    });
+
+    const qc = await analyzeDisposition(
+      labeledTranscript,
+      callData.campaignName,
+      detectedLanguage
+    );
+
+    // ── Step 4: Complete ───────────────────────────────
+    await CallRecord.findByIdAndUpdate(callRecordId, {
+      callStatus: "completed",
+      status: qc.disposition,
+      qc,
+      processingEndTime: new Date(),
+    });
+
+    return { success: true };
+  } catch (error) {
+    const errorStatus = this.getErrorStatus(error);
+
+    await CallRecord.findByIdAndUpdate(callRecordId, {
+      callStatus: errorStatus,
+      error: error.message,
+      processingEndTime: new Date(),
+    });
+
+    throw error;
   }
+}
 
   getErrorStatus(error) {
     const msg = error.message.toLowerCase();
