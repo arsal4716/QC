@@ -9,10 +9,19 @@ const DG_COST_PER_MIN = 0.004;
 async function transcribe(recordingUrl) {
   const tmp = path.join(__dirname, `../tmp_${Date.now()}.mp3`);
 
+  const headers = {};
+  if (recordingUrl.includes("api.callgrid.com")) {
+    headers.Authorization = `Bearer ${process.env.CALLGRID_TOKEN}`;
+  }
+
   const audioRes = await axios.get(recordingUrl, {
     responseType: "arraybuffer",
     timeout: 60_000,
+    headers,
+    maxRedirects: 5,
+    validateStatus: (s) => s >= 200 && s < 300,
   });
+
   fs.writeFileSync(tmp, audioRes.data);
 
   const audio = fs.readFileSync(tmp);
@@ -33,14 +42,23 @@ async function transcribe(recordingUrl) {
 
   const transcript =
     result?.results?.channels?.[0]?.alternatives?.[0]?.transcript || "";
+
   const durationSec = Number(result?.metadata?.duration || 0);
-  const estCost = (durationSec / 60) * DG_COST_PER_MIN;
+  const estCost = (durationSec / 60) * 0.004;
+
   const detectedLanguage =
     result?.results?.channels?.[0]?.detected_language || "en";
+
   const languageConfidence =
     result?.results?.channels?.[0]?.language_confidence || 0;
 
-  return { transcript, durationSec, estCost, detectedLanguage, languageConfidence };
+  return {
+    transcript,
+    durationSec,
+    estCost,
+    detectedLanguage,
+    languageConfidence,
+  };
 }
 
 module.exports = { transcribe };
