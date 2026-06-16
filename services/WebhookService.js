@@ -8,7 +8,7 @@ const Campaign = require("../models/Campaign");
 const Publisher = require("../models/Publisher");
 const Buyer = require("../models/Buyer");
 const Target = require("../models/Target");
-
+const axios = require("axios");
 const redisUrl = process.env.REDIS_URL || "redis://127.0.0.1:6379";
 
 class WebhookService {
