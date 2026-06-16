@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const { protect } = require("../middleware/authMiddleware");
 const {
   getCaps,
   updateTarget,
@@ -7,9 +8,12 @@ const {
   exportCaps
 } = require("../controllers/capsController");
 
-router.get("/", getCaps);
-router.patch("/target/:id", updateTarget);
-router.get("/export",exportCaps);
+// Pixel fire is an external (unauthenticated) tracking callback.
 router.get("/pixel", processPixelFire);
+
+// Dashboard data requires a valid session.
+router.get("/", protect, getCaps);
+router.patch("/target/:id", protect, updateTarget);
+router.get("/export", protect, exportCaps);
 
 module.exports = router;

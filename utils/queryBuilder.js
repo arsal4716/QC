@@ -59,6 +59,26 @@ class QueryBuilder {
     return this;
   }
 
+  setSystemFilter(system) {
+    if (!system) return this;
+    const list = this._normalizeArray(system);
+    if (!list.length) return this;
+    // Build exact-match casing variants so the systemName index is used
+    // (case-insensitive regex would force a collection scan).
+    const variants = new Set();
+    list.forEach((s) => {
+      const v = String(s).trim();
+      if (!v) return;
+      variants.add(v);
+      variants.add(v.toLowerCase());
+      variants.add(v.toUpperCase());
+      variants.add(v.charAt(0).toUpperCase() + v.slice(1).toLowerCase());
+    });
+    const values = Array.from(variants);
+    this.query.systemName = values.length === 1 ? values[0] : { $in: values };
+    return this;
+  }
+
   setBuyerFilter(buyers) {
     if (!buyers) return this;
     const list = this._normalizeArray(buyers);
@@ -103,16 +123,43 @@ class QueryBuilder {
   setSearchFilter(term, fields = null) {
     if (!term || !term.trim()) return this;
     const trimmed = term.trim();
+
+    // Phone-number aware search. Supports US formats like:
+    //   1234567890, (123) 456-7890, +1 123 456 7890, 123-456-7890
+    const digits = trimmed.replace(/\D/g, "");
+    const isPhoneLike =
+      digits.length >= 7 && /^[\d\s().+-]+$/.test(trimmed);
+
+    if (isPhoneLike) {
+      // Drop a leading US country code so "+1 123..." matches stored "123...".
+      let core = digits;
+      if (core.length === 11 && core.startsWith("1")) core = core.slice(1);
+      // Match the digit sequence even when the stored value contains
+      // separators e.g. "(123) 456-7890".
+      const pattern = core.split("").join("\\D*");
+      const rx = new RegExp(pattern);
+      this.query.$and = this.query.$and || [];
+      this.query.$and.push({
+        $or: [
+          { callerId: rx },
+          { inboundPhoneNumber: rx },
+          { dialedNumber: rx },
+        ],
+      });
+      return this;
+    }
+
     if (trimmed.length > 2 && !trimmed.includes(":")) {
       this.query.$text = { $search: trimmed };
       this.options.score = { $meta: "textScore" };
     } else {
+      const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const searchFields = fields || [
-        { callerId: new RegExp(trimmed, "i") },
-        { campaignName: new RegExp(trimmed, "i") },
-        { publisherName: new RegExp(trimmed, "i") },
-        { "qc.reason": new RegExp(trimmed, "i") },
-        { "qc.summary": new RegExp(trimmed, "i") },
+        { callerId: new RegExp(escaped, "i") },
+        { campaignName: new RegExp(escaped, "i") },
+        { publisherName: new RegExp(escaped, "i") },
+        { "qc.reason": new RegExp(escaped, "i") },
+        { "qc.summary": new RegExp(escaped, "i") },
       ];
       if (!this.query.$or) this.query.$or = [];
       this.query.$or.push(...searchFields);

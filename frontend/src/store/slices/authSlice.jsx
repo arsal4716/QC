@@ -28,6 +28,7 @@ const authSlice = createSlice({
       state.isAuthenticated = !!token;
       try {
         if (token) localStorage.setItem("token", token);
+        if (user) localStorage.setItem("user", JSON.stringify(user));
       } catch (e) {
       }
     },
@@ -37,6 +38,9 @@ const authSlice = createSlice({
       state.isAuthenticated = false;
       try {
         localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        // Wipe the persisted store so back-navigation cannot rehydrate a session.
+        localStorage.removeItem("persist:root");
       } catch (e) {}
     },
     setLoading: (state, action) => {

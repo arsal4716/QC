@@ -43,10 +43,13 @@ class AdvancedStatsService {
 
       const queryBuilder = AdvancedQueryBuilder.forModel(CallRecord)
         .setDateRange(filters)
+        .setSystemFilter(filters.system)
         .setCampaignFilter(filters.campaign)
         .setPublisherFilter(filters.publisher)
         .setTargetFilter(filters.target)
-        .setBuyerFilter(filters.buyer);
+        .setBuyerFilter(filters.buyer)
+        .setDispositionFilter(filters.disposition, "qc.disposition")
+        .setStatusFilter(filters.status);
       const matchStage = queryBuilder._buildFinalQuery();
 
       const [totalCounts, dispositionStats] = await Promise.all([

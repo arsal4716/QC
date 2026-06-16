@@ -11,6 +11,24 @@ const DetailModal = () => {
   if (!recordDetail?.open || !recordDetail.data) return null;
 
   const record = recordDetail.data;
+
+  // Stream recordings through the authenticated API proxy. This fixes
+  // CallGrid playback (redirects / CORS / content-type) and works for Ringba
+  // too. Falls back to the raw URL when we don't have a record id.
+  const recordingProxyUrl = (() => {
+    if (!record?.recordingUrl) return null;
+    if (!record?._id) return record.recordingUrl;
+    const base = process.env.REACT_APP_API_BASE || "";
+    let token = null;
+    try {
+      token = localStorage.getItem("token");
+    } catch (e) {
+      token = null;
+    }
+    const qs = token ? `?token=${encodeURIComponent(token)}` : "";
+    return `${base}/api/calls/recording/${record._id}${qs}`;
+  })();
+
   const handleClose = () => {
     dispatch(clearRecordDetail());
   };
@@ -97,8 +115,7 @@ const DetailModal = () => {
                   {record.recordingUrl && (
                     <div className="detail-section">
                       <h6>Recording</h6>
-                      <audio controls className="w-100">
-                        <source src={record.recordingUrl} type="audio/mpeg" />
+                      <audio controls preload="none" className="w-100" src={recordingProxyUrl}>
                         Your browser does not support the audio element.
                       </audio>
                     </div>
@@ -132,7 +149,7 @@ const DetailModal = () => {
               </button>
               {record.recordingUrl && (
                 <a
-                  href={record.recordingUrl}
+                  href={recordingProxyUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn btn-primary"

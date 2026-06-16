@@ -14,7 +14,6 @@ import Register from "./Pages/Register/Register";
 import Login from "./Pages/Login/Login";
 import Users from "./Pages/Users/Users";
 import Caps from "./Pages/Caps/Caps";
-import TwilioCalls from "./Pages/TwilioCalls/TwilioCalls";
 import ProtectedRoute from "./components/Route/ProtectedRoute";
 import PublicRoute from "./components/Route/PublicRoute";
 import { ToastContainer } from "react-toastify";
@@ -57,12 +56,24 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
+                  {/* Legacy path -> default to Ringba calls */}
+                  <Route path="/callLogs" element={<Navigate to="/calls/ringba" replace />} />
                   <Route
-                    path="/callLogs"
+                    path="/calls/ringba"
                     element={
                       <ProtectedRoute>
                         <DashboardLayout>
-                          <CallLogs />
+                          <CallLogs system="Ringba" />
+                        </DashboardLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/calls/callgrid"
+                    element={
+                      <ProtectedRoute>
+                        <DashboardLayout>
+                          <CallLogs system="CallGrid" />
                         </DashboardLayout>
                       </ProtectedRoute>
                     }
@@ -73,16 +84,6 @@ function App() {
                       <ProtectedRoute>
                         <DashboardLayout>
                           <Caps />
-                        </DashboardLayout>
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/twilioCalls"
-                    element={
-                      <ProtectedRoute>
-                        <DashboardLayout>
-                          <TwilioCalls />
                         </DashboardLayout>
                       </ProtectedRoute>
                     }

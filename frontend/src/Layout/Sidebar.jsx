@@ -6,9 +6,9 @@ const Sidebar = ({ collapsed, activePage, setActivePage }) => {
 
   const menuItems = [
     { id: "reporting", label: "Reporting", icon: "bi-bar-chart", path: "/reporting" },
-    { id: "callLogs", label: "Call Logs", icon: "bi-phone", path: "/callLogs" },
+    { id: "ringba", label: "Ringba Calls", icon: "bi-phone", path: "/calls/ringba" },
+    { id: "callgrid", label: "CallGrid Calls", icon: "bi-telephone", path: "/calls/callgrid" },
     { id: "caps", label: "Caps", icon: "bi-graph-up", path: "/caps" },
-    { id: "TwilioCalls", label: "Twilio Calls", icon: "bi-telephone", path: "/twilioCalls" },
     { id: "users", label: "Users", icon: "bi-people", path: "/users" },
     { id: "logout", label: "Logout", icon: "bi-box-arrow-right", action: logout },
   ];

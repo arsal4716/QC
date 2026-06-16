@@ -10,7 +10,7 @@ import TableFilter from "../Filters/TableFilter";
 import { useQueryParams } from "../../hooks/useQueryParams";
 import { useExportManager } from "../../hooks/useExportManager";
 
-const RecordsTable = memo(({ refreshKey }) => {
+const RecordsTable = memo(({ refreshKey, system }) => {
   const dispatch = useDispatch();
   const filters = useSelector((state) => state.filters);
   const { exportState, exportRecords, downloadBlob, resetExportState } =
@@ -19,12 +19,32 @@ const RecordsTable = memo(({ refreshKey }) => {
   const searchValue = filters.search || "";
   const debouncedSearch = useDebounce(searchValue, 300);
   const { columns } = useColumns();
-  const queryParams = useQueryParams();
+  const baseQueryParams = useQueryParams();
+
+  // Scope every request (and export) to the active system (Ringba / CallGrid).
+  const queryParams = useMemo(
+    () => (system ? { ...baseQueryParams, system } : baseQueryParams),
+    [baseQueryParams, system],
+  );
+
+  // Export ONLY the columns the user has made visible, in display order.
+  const visibleColumnKeys = useMemo(
+    () =>
+      (columns || [])
+        .filter((c) => c && c.visible && c.key)
+        .map((c) => c.key)
+        .join(","),
+    [columns],
+  );
 
   const handleExport = useCallback(
     async (format) => {
       try {
-        const blob = await exportRecords({ ...queryParams, fmt: format });
+        const blob = await exportRecords({
+          ...queryParams,
+          columns: visibleColumnKeys,
+          fmt: format,
+        });
         downloadBlob(blob, format);
         setTimeout(() => {
           resetExportState();
@@ -33,7 +53,7 @@ const RecordsTable = memo(({ refreshKey }) => {
         console.error("Export failed", err);
       }
     },
-    [exportRecords, downloadBlob, resetExportState, queryParams],
+    [exportRecords, downloadBlob, resetExportState, queryParams, visibleColumnKeys],
   );
 
   const handleExportProgressHide = useCallback(() => {

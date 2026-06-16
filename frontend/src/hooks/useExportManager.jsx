@@ -17,11 +17,32 @@ export const useExportManager = () => {
     });
     
     try {
-      const queryString = new URLSearchParams(params).toString();
-      const url = `/api/calls/export?${queryString}`;
-      
-      const response = await fetch(url);
-      
+      // Drop empty params so we don't send "undefined"/"null" strings.
+      const cleanParams = Object.fromEntries(
+        Object.entries(params || {}).filter(
+          ([, v]) => v !== undefined && v !== null && v !== "",
+        ),
+      );
+      const queryString = new URLSearchParams(cleanParams).toString();
+      const base = process.env.REACT_APP_API_BASE || "";
+      const url = `${base}/api/calls/export?${queryString}`;
+
+      // The export route is JWT-protected; attach the bearer token.
+      const token = (() => {
+        try {
+          return localStorage.getItem("token");
+        } catch (e) {
+          return null;
+        }
+      })();
+
+      const response = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+
+      if (response.status === 401) {
+        throw new Error("Your session has expired. Please log in again.");
+      }
       if (!response.ok) {
         throw new Error(`Export failed: ${response.statusText}`);
       }
