@@ -20,16 +20,7 @@ const DATE_PRESETS = [
 ];
 
 const FiltersPanel = React.memo(
-  ({
-    visible,
-    onApply,
-    onClose,
-    initial,
-    selectedCampaigns,
-    selectedPublishers,
-    selectedTargets,
-    selectedBuyers,
-  }) => {
+  ({ visible, onApply, onClose, initial }) => {
     const dispatch = useDispatch();
     const [preset, setPreset] = useState(initial?.preset || "today");
     const [dateRange, setDateRange] = useState({
@@ -38,29 +29,19 @@ const FiltersPanel = React.memo(
     });
 
     const handleApply = useCallback(() => {
+      // This panel only controls the date range. Campaign/publisher/target/buyer
+      // selections are managed by their own pickers — don't wipe them here.
       const payload = {
         datePreset: preset,
-        campaign: selectedCampaigns,
-        publisher: selectedPublishers,
-        target: selectedTargets,
-        buyer: selectedBuyers,
         startDate: preset === "custom" ? dateRange.startDate || null : null,
         endDate: preset === "custom" ? dateRange.endDate || null : null,
+        page: 1,
       };
 
       dispatch(setFilters(payload));
       onApply(payload);
       toast.success("Filters applied");
-    }, [
-      preset,
-      selectedCampaigns,
-      selectedPublishers,
-      selectedTargets,
-      selectedBuyers,
-      dateRange,
-      dispatch,
-      onApply,
-    ]);
+    }, [preset, dateRange, dispatch, onApply]);
 
     const handleReset = useCallback(() => {
       dispatch(resetFilters());

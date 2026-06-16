@@ -219,7 +219,38 @@ class QueryBuilder {
   }
 
   async count() {
-    return this.model.countDocuments(this._buildFinalQuery());
+    const finalQuery = this._buildFinalQuery();
+
+    // Cache counts (keyed on the query only, not pagination/sort). Counting a
+    // large filtered range is expensive and would otherwise run on every page
+    // change and re-filter.
+    let cacheKey = null;
+    if (this.cacheEnabled) {
+      const hash = crypto
+        .createHash("md5")
+        .update(
+          JSON.stringify({
+            q: finalQuery,
+            ts: Math.floor(Date.now() / (this.cacheTTL * 1000)),
+          })
+        )
+        .digest("hex");
+      cacheKey = `count:${this.model.modelName}:${hash}`;
+      const cached = await redis.get(cacheKey);
+      if (cached !== null && cached !== undefined) {
+        const n = parseInt(cached, 10);
+        if (!Number.isNaN(n)) return n;
+      }
+    }
+
+    const total = await this.model
+      .countDocuments(finalQuery)
+      .maxTimeMS(15000);
+
+    if (cacheKey) {
+      await redis.setex(cacheKey, this.cacheTTL, String(total));
+    }
+    return total;
   }
 
   async aggregate(pipeline = []) {

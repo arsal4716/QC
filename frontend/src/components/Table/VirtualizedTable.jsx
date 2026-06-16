@@ -16,6 +16,7 @@ const VirtualizedTable = memo(({
   data,
   columns,
   loading,
+  isFetching,
   totalCount,
   pagination,
   onRowClick,
@@ -27,13 +28,43 @@ const VirtualizedTable = memo(({
   const safeData = useMemo(() => Array.isArray(data) ? data.filter(Boolean) : [], [data]);
   const safeColumns = useMemo(() => normalizeColumns(columns), [columns]);
 
-  if (loading) return <LoadingState />;
-  if (!loading && safeData.length === 0) {
+  // First load (no data yet) -> full loader.
+  if (loading) return <LoadingState message="Loading call logs..." />;
+  if (!loading && !isFetching && safeData.length === 0) {
     return <EmptyState message="No records found." />;
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", minHeight: "600px" }}>
+    <div style={{ display: "flex", flexDirection: "column", minHeight: "600px", position: "relative" }}>
+      {/* Overlay while re-fetching (filter / disposition change, pagination) */}
+      {isFetching && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 5,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "12px",
+            backgroundColor: "rgba(18, 23, 43, 0.6)",
+            backdropFilter: "blur(1px)",
+            borderRadius: "5px",
+          }}
+        >
+          <div
+            className="spinner-border"
+            role="status"
+            style={{ width: "2.5rem", height: "2.5rem", color: "#4dabf7" }}
+          >
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <span style={{ color: "#e9eefb", fontSize: "0.9rem" }}>
+            Updating results...
+          </span>
+        </div>
+      )}
       <div style={{ 
         flex: "1", 
         overflowY: "hidden", 

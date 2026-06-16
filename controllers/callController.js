@@ -123,11 +123,10 @@ class CallController {
         .disableCache();
 
       const finalQuery = queryBuilder._buildFinalQuery();
-      const estimatedCount = await CallRecord.countDocuments(finalQuery)
-        .maxTimeMS(10000)
-        .catch(() => 0);
 
-      logger.info(`Export estimated records: ${estimatedCount.toLocaleString()}`);
+      // Note: we intentionally do NOT pre-count here. Counting a large filtered
+      // range can take several seconds and only delayed the download; streaming
+      // starts immediately instead.
 
       res.setHeader('Content-Type',
         format === 'xlsx'
@@ -577,7 +576,19 @@ class CallController {
         });
       }
 
-      const url = String(record.recordingUrl).trim();
+      let url = String(record.recordingUrl).trim();
+
+      // Some providers (CallGrid) store the recording as a JSON string
+      // like {"url":"https://..."}. Unwrap it before fetching.
+      if (url.startsWith("{")) {
+        try {
+          const parsed = JSON.parse(url);
+          url = String(parsed.url || parsed.recording_url || "").trim();
+        } catch (e) {
+          /* fall through to validation below */
+        }
+      }
+
       if (!/^https?:\/\//i.test(url)) {
         return error(res, {
           status: 422,
@@ -586,40 +597,7 @@ class CallController {
         });
       }
 
-      const range = req.headers.range;
-      const upstream = await axios.get(url, {
-        responseType: "stream",
-        maxRedirects: 5, // follow redirected (signed) recording URLs
-        timeout: 30000,
-        headers: range ? { Range: range } : {},
-        validateStatus: (s) => s >= 200 && s < 400,
-      });
-
-      res.setHeader(
-        "Content-Type",
-        upstream.headers["content-type"] || "audio/mpeg"
-      );
-      res.setHeader("Accept-Ranges", "bytes");
-      res.setHeader("Cache-Control", "private, max-age=3600");
-      if (upstream.headers["content-length"]) {
-        res.setHeader("Content-Length", upstream.headers["content-length"]);
-      }
-      if (upstream.headers["content-range"]) {
-        res.setHeader("Content-Range", upstream.headers["content-range"]);
-      }
-
-      res.status(upstream.status === 206 ? 206 : 200);
-
-      upstream.data.on("error", (streamErr) => {
-        logger.error("Recording stream error", {
-          recordId: id,
-          error: streamErr.message,
-        });
-        if (!res.headersSent) res.status(502).end();
-        else res.end();
-      });
-
-      upstream.data.pipe(res);
+      await this._streamRecordingFrom(res, url, req.headers.range, 0);
     } catch (err) {
       logger.error("Failed to stream recording", {
         recordId: req.params.id,
@@ -634,6 +612,61 @@ class CallController {
       }
       res.end();
     }
+  }
+
+  // Fetch `url` and pipe it to the response. If the upstream responds with JSON
+  // (CallGrid's recordings API returns {"url": signedS3Url}), follow that URL
+  // and stream the real audio. Recurses a couple of times at most.
+  async _streamRecordingFrom(res, url, range, depth) {
+    if (depth > 3) {
+      throw new Error("Too many recording redirects");
+    }
+
+    const upstream = await axios.get(url, {
+      responseType: "stream",
+      maxRedirects: 5, // follow HTTP-level redirects to signed URLs
+      timeout: 30000,
+      headers: range ? { Range: range } : {},
+      validateStatus: (s) => s >= 200 && s < 400,
+    });
+
+    const contentType = String(upstream.headers["content-type"] || "");
+
+    if (contentType.includes("json")) {
+      // Buffer the (small) JSON body and resolve the nested audio URL.
+      const chunks = [];
+      for await (const chunk of upstream.data) chunks.push(chunk);
+      const body = Buffer.concat(chunks).toString("utf8");
+      let nextUrl;
+      try {
+        const parsed = JSON.parse(body);
+        nextUrl = parsed.url || parsed.recording_url || parsed.location;
+      } catch (e) {
+        throw new Error("Unexpected recording response format");
+      }
+      if (!nextUrl) throw new Error("No audio URL in recording response");
+      return this._streamRecordingFrom(res, String(nextUrl).trim(), range, depth + 1);
+    }
+
+    res.setHeader("Content-Type", contentType || "audio/mpeg");
+    res.setHeader("Accept-Ranges", "bytes");
+    res.setHeader("Cache-Control", "private, max-age=3600");
+    if (upstream.headers["content-length"]) {
+      res.setHeader("Content-Length", upstream.headers["content-length"]);
+    }
+    if (upstream.headers["content-range"]) {
+      res.setHeader("Content-Range", upstream.headers["content-range"]);
+    }
+
+    res.status(upstream.status === 206 ? 206 : 200);
+
+    upstream.data.on("error", (streamErr) => {
+      logger.error("Recording stream error", { error: streamErr.message });
+      if (!res.headersSent) res.status(502).end();
+      else res.end();
+    });
+
+    upstream.data.pipe(res);
   }
 
   async getRecordDetail(req, res) {
