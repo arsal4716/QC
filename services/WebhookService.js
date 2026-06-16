@@ -104,9 +104,21 @@ class WebhookService {
           headers: {
             Authorization: `Bearer ${process.env.CALLGRID_TOKEN}`,
           },
-        }); audioUrl = meta.data.url;
-      }
+          validateStatus: () => true,
+        });
 
+        const resolvedUrl = meta.data?.url;
+
+        if (meta.status === 200 && typeof resolvedUrl === "string" && resolvedUrl.startsWith("http")) {
+          audioUrl = resolvedUrl;
+        } else {
+          console.warn("CallGrid did not return valid url, using original recordingUrl:", {
+            status: meta.status,
+            data: meta.data,
+            original: audioUrl,
+          });
+        }
+      }
       const {
         transcript,
         durationSec,
