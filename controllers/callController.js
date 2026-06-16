@@ -599,26 +599,30 @@ class CallController {
 
       await this._streamRecordingFrom(res, url, req.headers.range, 0);
     } catch (err) {
+      const upstreamStatus = err.response?.status;
       logger.error("Failed to stream recording", {
         recordId: req.params.id,
         error: err.message,
+        upstreamStatus,
       });
       if (!res.headersSent) {
         return error(res, {
           status: 502,
           message: "Failed to load recording",
           code: "RECORDING_FETCH_FAILED",
+          details: upstreamStatus
+            ? `Upstream responded ${upstreamStatus}`
+            : err.message,
         });
       }
       res.end();
     }
   }
 
-  // Fetch `url` and pipe it to the response. If the upstream responds with JSON
-  // (CallGrid's recordings API returns {"url": signedS3Url}), follow that URL
-  // and stream the real audio. Recurses a couple of times at most.
+  // Fetch `url` and pipe it to the response. Handles CallGrid endpoints that
+  // return JSON ({"url": signedS3Url}) or redirect, and direct audio URLs.
   async _streamRecordingFrom(res, url, range, depth) {
-    if (depth > 3) {
+    if (depth > 4) {
       throw new Error("Too many recording redirects");
     }
 
@@ -626,26 +630,55 @@ class CallController {
       responseType: "stream",
       maxRedirects: 5, // follow HTTP-level redirects to signed URLs
       timeout: 30000,
-      headers: range ? { Range: range } : {},
+      // Some provider endpoints reject requests without a browser-like UA.
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+        Accept: "*/*",
+        ...(range ? { Range: range } : {}),
+      },
       validateStatus: (s) => s >= 200 && s < 400,
     });
 
-    const contentType = String(upstream.headers["content-type"] || "");
+    const contentType = String(upstream.headers["content-type"] || "").toLowerCase();
+    const isAudio =
+      contentType.startsWith("audio/") ||
+      contentType.startsWith("video/") ||
+      contentType.includes("octet-stream") ||
+      contentType.includes("mpeg") ||
+      contentType.includes("mp4") ||
+      contentType.includes("wav") ||
+      contentType.includes("ogg");
 
-    if (contentType.includes("json")) {
-      // Buffer the (small) JSON body and resolve the nested audio URL.
+    // JSON wrapper, or an ambiguous/text response that may contain JSON:
+    // buffer a small amount and try to resolve a nested audio URL.
+    if (!isAudio) {
       const chunks = [];
-      for await (const chunk of upstream.data) chunks.push(chunk);
-      const body = Buffer.concat(chunks).toString("utf8");
+      let size = 0;
+      for await (const chunk of upstream.data) {
+        chunks.push(chunk);
+        size += chunk.length;
+        if (size > 256 * 1024) break; // safety cap
+      }
+      const body = Buffer.concat(chunks).toString("utf8").trim();
+
       let nextUrl;
       try {
         const parsed = JSON.parse(body);
-        nextUrl = parsed.url || parsed.recording_url || parsed.location;
+        nextUrl = parsed.url || parsed.recording_url || parsed.location || parsed.uri;
       } catch (e) {
-        throw new Error("Unexpected recording response format");
+        // Not JSON. If the body itself is a bare URL, use it.
+        if (/^https?:\/\/\S+$/i.test(body)) nextUrl = body;
       }
-      if (!nextUrl) throw new Error("No audio URL in recording response");
-      return this._streamRecordingFrom(res, String(nextUrl).trim(), range, depth + 1);
+
+      if (!nextUrl) {
+        throw new Error(
+          `Unresolvable recording response (content-type: ${contentType || "none"})`
+        );
+      }
+      nextUrl = String(nextUrl).trim();
+      if (nextUrl === url) throw new Error("Recording URL resolution loop");
+      return this._streamRecordingFrom(res, nextUrl, range, depth + 1);
     }
 
     res.setHeader("Content-Type", contentType || "audio/mpeg");
