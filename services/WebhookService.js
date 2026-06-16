@@ -100,8 +100,11 @@ class WebhookService {
       let audioUrl = callData.recordingUrl;
 
       if (audioUrl.includes("api.callgrid.com/api/recordings")) {
-        const meta = await axios.get(audioUrl);
-        audioUrl = meta.data.url;
+        const meta = await axios.get(audioUrl, {
+          headers: {
+            Authorization: `Bearer ${process.env.CALLGRID_TOKEN}`,
+          },
+        }); audioUrl = meta.data.url;
       }
 
       const {
@@ -110,7 +113,7 @@ class WebhookService {
         estCost,
         detectedLanguage,
         languageConfidence,
-      } = await transcribe(audioUrl); 
+      } = await transcribe(audioUrl);
 
       // ── Step 2: Label Speakers ──────────────────────────────────────────
       await CallRecord.findByIdAndUpdate(callRecordId, {
