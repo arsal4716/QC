@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const CallRecord = require("../models/CallRecord");
 const QueryBuilder = require("../utils/queryBuilder");
 const redis = require("../config/redis");
@@ -49,6 +50,7 @@ class RecordsService {
     try {
       const queryBuilder = QueryBuilder.forModel(CallRecord)
         .setDateRange(filters)
+        .setSystemFilter(filters.system)
         .setCampaignFilter(filters.campaign)
         .setPublisherFilter(filters.publisher)
         .setTargetFilter(filters.target)
@@ -117,6 +119,7 @@ class RecordsService {
     try {
       const queryBuilder = QueryBuilder.forModel(CallRecord)
         .setDateRange(filters)
+        .setSystemFilter(filters.system)
         .setCampaignFilter(filters.campaign)
         .setTargetFilter(filters.target)
         .setPublisherFilter(filters.publisher)
@@ -172,8 +175,9 @@ class RecordsService {
         return JSON.parse(cached);
       }
 
-      const queryBuilder = AdvancedQueryBuilder.forModel(CallRecord)
+      const queryBuilder = QueryBuilder.forModel(CallRecord)
         .setDateRange(filters)
+        .setSystemFilter(filters.system)
         .setCampaignFilter(filters.campaign)
         .setTargetFilter(filters.target)
         .setPublisherFilter(filters.publisher)
@@ -216,7 +220,7 @@ class RecordsService {
         maxTimeMS: 15000,
         allowDiskUse: true,
       });
-      await redis.setex(cacheKey, this.cacheTTL, JSON.stringify(results));
+      await redis.setex(cacheKey, 300, JSON.stringify(results));
 
       return results;
     } catch (error) {
@@ -231,6 +235,7 @@ class RecordsService {
   async getCallTimeline(filters = {}, interval = "hour") {
     const queryBuilder = QueryBuilder.forModel(CallRecord)
       .setDateRange(filters)
+      .setSystemFilter(filters.system)
       .setCampaignFilter(filters.campaign)
       .setTargetFilter(filters.target)
       .setPublisherFilter(filters.publisher)
@@ -295,6 +300,14 @@ class RecordsService {
       sentiment,
       income: incomeDisplay,
     };
+  }
+
+  _generateCacheKey(prefix, field, filters = {}) {
+    const hash = crypto
+      .createHash("md5")
+      .update(JSON.stringify({ field, filters }))
+      .digest("hex");
+    return `${prefix}:CallRecord:${field}:${hash}`;
   }
 
   async _clearCacheForRecords(ids) {

@@ -9,8 +9,6 @@ const TableRow = memo(({ record, columns, onRowClick }) => {
   const dispatch = useDispatch();
   const safeColumns = Array.isArray(columns) ? columns.filter(Boolean) : [];
   const safeRecord = record && typeof record === "object" ? record : {};
-  
-  console.log("safe records", safeRecord);
 
 const handleViewDetails = useCallback((e) => {
   e.stopPropagation();

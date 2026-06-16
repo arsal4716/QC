@@ -6,6 +6,7 @@ const morgan = require("morgan");
 const connectDB = require("./config/db.js")
 const path = require('path');
 const capsRoutes = require('./routes/capsRoutes');
+const { protect } = require('./middleware/authMiddleware');
 dotenv.config();
 connectDB();
 
@@ -18,15 +19,26 @@ app.use(express.urlencoded({ extended: true }))
 app.use(express.json({ limit: "10mb" }));
 // app.use(helmet());
 app.use(morgan("dev"));
+// Public: inbound call webhooks (Ringba / CallGrid) and auth endpoints
 app.use('/webhook', require('./routes/callRoutes.js'));
-app.use('/api', require('./routes/stats'));        
-app.use('/api', require('./routes/records'));   
-app.use('/api', require('./routes/export'));
 app.use('/api/auth', require('./routes/authRoutes.js'));
+
+// Recording proxy: authenticates via header OR ?token= so <audio> can play it
+app.use('/api', require('./routes/recordings.js'));
+
+// Caps mounts its own per-route auth (pixel fire stays public). Mounted before
+// the prefix-level `protect` below so those public routes are reachable.
+app.use('/api/caps', capsRoutes);
+
+// Everything under /api below this line requires a valid JWT. Public routes
+// (auth, recordings, caps pixel) are mounted above and respond before reaching
+// this guard, so they remain accessible.
+app.use('/api', protect);
+app.use('/api', require('./routes/stats'));
+app.use('/api', require('./routes/records'));
+app.use('/api', require('./routes/export'));
 app.use('/api/', require('./routes/userRoute.js'));
 app.use('/api', require('./routes/filters.js'));
-app.use('/api/caps', capsRoutes);
-app.use('/api/twilioCalls', require('./routes/twilioCallsRoute.js'));
 
 app.use(express.static(path.join(__dirname, 'frontend/build')));
 app.get(/^\/(?!api).*$/, (req, res) => {

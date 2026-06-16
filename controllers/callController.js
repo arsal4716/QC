@@ -5,10 +5,25 @@ const CallRecord = require("../models/CallRecord");
 const { success, error } = require("../utils/apiResponse");
 const logger = require("../utils/logger");
 const ExcelJS = require("exceljs");
+const axios = require("axios");
 const { Transform, pipeline, Readable } = require("stream");
 const { promisify } = require("util");
+const { DateTime } = require("luxon");
 const streamPipeline = promisify(pipeline);
 const os = require("os");
+
+const EST_ZONE = "America/New_York";
+
+// Format any timestamp value to a consistent EST string for exports/UI.
+const formatEST = (value) => {
+  if (!value) return "";
+  const dt =
+    value instanceof Date
+      ? DateTime.fromJSDate(value, { zone: "utc" })
+      : DateTime.fromISO(String(value), { zone: "utc" });
+  if (!dt.isValid) return "";
+  return dt.setZone(EST_ZONE).toFormat("yyyy-MM-dd hh:mm:ss a 'EST'");
+};
 
 class StreamExportManager {
   constructor() {
@@ -90,8 +105,13 @@ class CallController {
         });
       }
 
+      // Resolve which columns to export. The UI sends a comma-separated list of
+      // column keys from the Column Settings panel; export ONLY those, in order.
+      const exportColumns = this._resolveExportColumns(filters.columns);
+
       const queryBuilder = QueryBuilder.forModel(CallRecord)
         .setDateRange(filters)
+        .setSystemFilter(filters.system)
         .setCampaignFilter(filters.campaign)
         .setTargetFilter(filters.target)
         .setPublisherFilter(filters.publisher)
@@ -120,9 +140,15 @@ class CallController {
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
 
+      // Only fetch the (large) transcript field when it is actually exported.
+      // Dropping it otherwise dramatically speeds up large exports.
+      const exportProjection = { ...this.recordsService.defaultProjection };
+      const wantsTranscript = exportColumns.some((c) => c.key === "transcript");
+      if (!wantsTranscript) delete exportProjection.transcript;
+
       // Create cursor with optimized settings for large datasets
       cursor = await CallRecord.find(finalQuery)
-        .select(this.recordsService.defaultProjection)
+        .select(exportProjection)
         .sort(queryBuilder.options.sort || { callTimestamp: -1 })
         .lean()
         .batchSize(5000)
@@ -133,9 +159,9 @@ class CallController {
       let lastProgressLog = Date.now();
 
       if (format === 'csv') {
-        await this._streamCSVExport(res, cursor, processedCount, lastProgressLog);
+        await this._streamCSVExport(res, cursor, processedCount, lastProgressLog, exportColumns);
       } else {
-        await this._streamExcelExport(res, cursor, processedCount, lastProgressLog);
+        await this._streamExcelExport(res, cursor, processedCount, lastProgressLog, exportColumns);
       }
 
       const exportDuration = Date.now() - exportStartTime;
@@ -172,14 +198,52 @@ class CallController {
     }
   }
 
-  async _streamCSVExport(res, cursor, processedCount, lastProgressLog) {
+  // Map the UI column keys to the export column definitions, preserving the
+  // order the user selected. Falls back to all columns when none specified.
+  _resolveExportColumns(columnsParam) {
+    if (!columnsParam) return this.exportColumns;
+
+    const requested = String(columnsParam)
+      .split(",")
+      .map((c) => c.trim())
+      .filter(Boolean);
+
+    if (!requested.length) return this.exportColumns;
+
+    // A few UI column keys differ from the export schema keys; map them so the
+    // user's selection still resolves to the right field.
+    const aliasMap = {
+      cid: "callerId",
+      caller_id: "callerId",
+      timestamp: "callTimestamp",
+      // The table "Status" column displays the disposition.
+      status: "disposition",
+    };
+
+    const byKey = new Map(this.exportColumns.map((col) => [col.key, col]));
+    const resolved = [];
+    const seen = new Set();
+
+    for (const key of requested) {
+      const normalized = byKey.has(key) ? key : aliasMap[key];
+      const col = normalized && byKey.get(normalized);
+      if (col && !seen.has(col.key)) {
+        resolved.push(col);
+        seen.add(col.key);
+      }
+    }
+
+    return resolved.length ? resolved : this.exportColumns;
+  }
+
+  async _streamCSVExport(res, cursor, processedCount, lastProgressLog, exportColumns = this.exportColumns) {
     return new Promise((resolve, reject) => {
       let isFirstChunk = true;
 
       const processRecord = (record) => {
         try {
           const transformed = this.recordsService._transformRecord(record);
-          const csvRow = this._convertToCSVRow(transformed);
+          const csvRow = this._convertToCSVRow(transformed, exportColumns);
 
           processedCount++;
           const now = Date.now();
@@ -218,7 +282,7 @@ class CallController {
 
           if (csvRows.length > 0) {
             if (isFirstChunk) {
-              const headers = this.exportColumns.map(col => col.header);
+              const headers = exportColumns.map(col => col.header);
               res.write(headers.join(',') + '\n');
               isFirstChunk = false;
             }
@@ -245,7 +309,7 @@ class CallController {
     });
   }
 
-  async _streamExcelExport(res, cursor, processedCount, lastProgressLog) {
+  async _streamExcelExport(res, cursor, processedCount, lastProgressLog, exportColumns = this.exportColumns) {
     const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({
       stream: res,
       useStyles: false,
@@ -253,21 +317,17 @@ class CallController {
     });
 
     const worksheet = workbook.addWorksheet('Call Records');
-    worksheet.columns = this.exportColumns;
+    // Setting `columns` writes the header row automatically. We intentionally
+    // do NOT add a second key-row, which previously corrupted the layout.
+    worksheet.columns = exportColumns;
 
     try {
       let record;
-      let isFirstRecord = true;
 
       while ((record = await cursor.next())) {
         try {
           const transformed = this.recordsService._transformRecord(record);
-          const rowData = this._convertToExcelRow(transformed);
-
-          if (isFirstRecord) {
-            worksheet.addRow(Object.keys(rowData)).commit();
-            isFirstRecord = false;
-          }
+          const rowData = this._convertToExcelRow(transformed, exportColumns);
 
           worksheet.addRow(rowData).commit();
           processedCount++;
@@ -301,36 +361,45 @@ class CallController {
     }
   }
 
-  _convertToCSVRow(record) {
-    const fields = this.exportColumns.map(col => {
-      let value = record[col.key];
-      if (col.key === 'disposition') value = record.qc?.disposition || record.disposition;
-      if (col.key === 'sub_disposition') value = record.qc?.sub_disposition || record.sub_disposition;
-      if (col.key === 'reason') value = record.qc?.reason || record.reason;
-      if (col.key === 'summary') value = record.qc?.summary || record.summary;
+  // Strictly resolve a single export cell value for a column. Keeping this in
+  // one place guarantees CSV and XLSX stay column-accurate (no field bleed).
+  _resolveExportValue(record, key) {
+    switch (key) {
+      case "callTimestamp":
+        return formatEST(record.callTimestamp);
+      case "disposition":
+        return record.disposition || record.qc?.disposition || "";
+      case "sub_disposition":
+        return record.sub_disposition || record.qc?.sub_disposition || "";
+      case "reason":
+        return record.reason || record.qc?.reason || "";
+      case "summary":
+        return record.summary || record.qc?.summary || "";
+      case "income":
+        return record.income || "";
+      default: {
+        const value = record[key];
+        return value == null ? "" : value;
+      }
+    }
+  }
 
-      if (value == null) value = '';
+  _convertToCSVRow(record, exportColumns = this.exportColumns) {
+    const fields = exportColumns.map((col) => {
+      const value = this._resolveExportValue(record, col.key);
       const stringValue = String(value).replace(/"/g, '""');
       return `"${stringValue}"`;
     });
 
-    return fields.join(',');
+    return fields.join(",");
   }
 
-  _convertToExcelRow(record) {
+  _convertToExcelRow(record, exportColumns = this.exportColumns) {
     const row = {};
-
-    this.exportColumns.forEach(col => {
-      let value = record[col.key];
-
-      if (col.key === 'disposition') value = record.qc?.disposition || record.disposition;
-      if (col.key === 'sub_disposition') value = record.qc?.sub_disposition || record.sub_disposition;
-      if (col.key === 'reason') value = record.qc?.reason || record.reason;
-      if (col.key === 'summary') value = record.qc?.summary || record.summary;
-
-      row[col.header] = value != null ? value : '';
+    exportColumns.forEach((col) => {
+      // Key by `col.key` so values land in the correct ExcelJS column.
+      row[col.key] = this._resolveExportValue(record, col.key);
     });
-
     return row;
   }
 
@@ -346,6 +415,9 @@ class CallController {
         disposition,
         status,
         realtime,
+        system,
+        target,
+        buyer,
       } = req.query;
 
       const filters = {
@@ -356,6 +428,9 @@ class CallController {
         publisher,
         disposition,
         status,
+        system,
+        target,
+        buyer,
       };
 
       logger.debug("Fetching statistics", { filters, realtime });
@@ -419,6 +494,7 @@ class CallController {
         status,
         target,
         buyer,
+        system,
       } = req.query;
 
       const filters = {
@@ -432,6 +508,7 @@ class CallController {
         search,
         target,
         buyer,
+        system,
       };
 
       const options = {
@@ -478,6 +555,84 @@ class CallController {
         message: err.message || "Failed to fetch records",
         code: "RECORDS_QUERY_FAILED",
       });
+    }
+  }
+
+  // Stream a call recording through the API. This fixes CallGrid playback,
+  // where the raw recording URL redirects / lacks CORS / returns an
+  // unexpected content-type, all of which break the browser <audio> element.
+  async streamRecording(req, res) {
+    try {
+      const { id } = req.params;
+      const record = await CallRecord.findById(id)
+        .select("recordingUrl")
+        .lean()
+        .maxTimeMS(5000);
+
+      if (!record || !record.recordingUrl) {
+        return error(res, {
+          status: 404,
+          message: "Recording not found",
+          code: "RECORDING_NOT_FOUND",
+        });
+      }
+
+      const url = String(record.recordingUrl).trim();
+      if (!/^https?:\/\//i.test(url)) {
+        return error(res, {
+          status: 422,
+          message: "Recording URL is invalid",
+          code: "RECORDING_URL_INVALID",
+        });
+      }
+
+      const range = req.headers.range;
+      const upstream = await axios.get(url, {
+        responseType: "stream",
+        maxRedirects: 5, // follow redirected (signed) recording URLs
+        timeout: 30000,
+        headers: range ? { Range: range } : {},
+        validateStatus: (s) => s >= 200 && s < 400,
+      });
+
+      res.setHeader(
+        "Content-Type",
+        upstream.headers["content-type"] || "audio/mpeg"
+      );
+      res.setHeader("Accept-Ranges", "bytes");
+      res.setHeader("Cache-Control", "private, max-age=3600");
+      if (upstream.headers["content-length"]) {
+        res.setHeader("Content-Length", upstream.headers["content-length"]);
+      }
+      if (upstream.headers["content-range"]) {
+        res.setHeader("Content-Range", upstream.headers["content-range"]);
+      }
+
+      res.status(upstream.status === 206 ? 206 : 200);
+
+      upstream.data.on("error", (streamErr) => {
+        logger.error("Recording stream error", {
+          recordId: id,
+          error: streamErr.message,
+        });
+        if (!res.headersSent) res.status(502).end();
+        else res.end();
+      });
+
+      upstream.data.pipe(res);
+    } catch (err) {
+      logger.error("Failed to stream recording", {
+        recordId: req.params.id,
+        error: err.message,
+      });
+      if (!res.headersSent) {
+        return error(res, {
+          status: 502,
+          message: "Failed to load recording",
+          code: "RECORDING_FETCH_FAILED",
+        });
+      }
+      res.end();
     }
   }
 
