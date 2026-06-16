@@ -631,10 +631,16 @@ class CallController {
       maxRedirects: 5, // follow HTTP-level redirects to signed URLs
       timeout: 30000,
       // Some provider endpoints reject requests without a browser-like UA.
+      // CallGrid's recordings API additionally requires a bearer token (the
+      // same one the transcription service uses). Don't leak it to other hosts
+      // (e.g. the signed S3 URL we get redirected/pointed to).
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
         Accept: "*/*",
+        ...(/callgrid\.com/i.test(url) && process.env.CALLGRID_TOKEN
+          ? { Authorization: `Bearer ${process.env.CALLGRID_TOKEN}` }
+          : {}),
         ...(range ? { Range: range } : {}),
       },
       validateStatus: (s) => s >= 200 && s < 400,
